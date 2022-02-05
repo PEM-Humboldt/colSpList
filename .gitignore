@@ -109,7 +109,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-*_env/
+colSpList_env/
 
 # Spyder project settings
 .spyderproject
