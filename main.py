@@ -46,22 +46,29 @@ def get_gbif_parent(gbifkey: int):
 
 def insert_tax(**kwargs):
     # has the taxon a gbifkey?
+    alreadyInDb = False
     if (kwargs.get('gbifkey') is not None):
         SQL = "SELECT count(*) AS nb FROM taxon WHERE gbifkey = %s"
         cur.execute(SQL, [kwargs.get('gbifkey')])
-        res, = cur.fetchone()
-        if (res = 1):
-            None
-            elif (res = 0):
-                get_gbif_tax_from_id(kwargs.get('gbifkey'))
-        
-        # yes: 
-            # is the gbif key already in the db?
-                # yes: check if there are other info on the species and if there are compatible with the tax in the db
-                # no get the gbif taxon info from gbif key
-    # has the species a scientificname?
-        # yes:
-            # is the scientificname already in the db
-                # yes
-            #
-    
+        gbifKeyInDb_nb, = cur.fetchone()
+        if (gbifKeyInDb_nb = 1):
+            if(kwargs.get('canonicalname') is not None):
+                SQL = "SELECT name FROM taxon WHERE gbifkey = %s"
+                cur.execute(SQL,[kwargs.get('gbifkey')])
+                nameTaxDb, = cur.fetchone()
+                diffTaxName = fuzz.ratio(nameTaxDb,kwargs.get('canonicalname'))
+                if (diffTaxName <0.75):
+                    raise Exception("Name of the taxon does not correspond to gbifkey")
+                else:
+                    alreadyInDb = True
+        elif (gbifKeyInDb_nb = 0):
+            infoTax = get_gbif_tax_from_id(kwargs.get('gbifkey'))
+        else :
+            raise Exception("gbifkey more than once in the database, should not be possible!")
+    elif (kwargs.get('scientificname') is not None):
+        SQL = "SELECT count(*) AS nb FROM taxon WHERE name_auth = %s"
+        cur.execute(SQL,[kwargs.get('scientificname')])
+        gbifSciInDb_nb, = cur.fetchone()
+        if (gbifSciInDb_nb = 0):
+            infoTax = get_gbif_tax_from_sci_name(kwargs.get('scientificname'))
+            
