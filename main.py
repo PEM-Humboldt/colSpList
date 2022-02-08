@@ -13,9 +13,7 @@ from fuzzywuzzy import fuzz
 
 
 
-DATABASE_URL = os.environ['DATABASE_URL']
-conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-cur = conn.cursor()
+
 
 
 def get_gbif_tax_from_id(gbifid: int):
@@ -62,6 +60,9 @@ def get_gbif_synonyms(gbifkey: int):
     return content
 
 def test_taxInDb(**kwargs):
+    DATABASE_URL = os.environ['DATABASE_URL']
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    cur = conn.cursor()
     alreadyInDb = False
     gbifMatchMode = None
     idTax = None
@@ -116,17 +117,40 @@ def test_taxInDb(**kwargs):
             raise Exception("Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to")
     else:
         raise Exception("Either 'gbifkey', or 'scientificname', or 'canonicalname' should be included in the parameters in order to be able to identify the taxon")
+    cur.close()
+    conn.close()
     return {'alreadyInDb': alreadyInDb, 'gbifMatchMode': gbifMatchMode, 'idTax': idTax}
 
-def insert_tax(**kwargs):
-    if(alreadyInDb):
-        # here we need to manage the cases where the idTax is a synonym or is referred by a synonym, function should return all of them
-        return idTax
+def get_infoTax(**kwargs):
+    foundGbif = False
+    if (kwargs.get('gbifMatchMode') == 'gbifkey'):
+        infoTax = get_gbif_tax_from_id(kwargs.get('gbifkey'))
+        foundGbif = True
+    elif (kwargs.get('gbifMatchMode') == 'canonicalname'):
+        infoTax = get_gbif_tax_from_name(kwargs.get('canonicalname'))
+    elif (kwargs.get('gbifMatchMode') == 'scientificname'):
+        infoTax = get_gbif_tax_from_sci_name(kwargs.get('scientificname'))
     else:
-        # Managing matchtype, precision and potential need to get all the informations if no confident match is found from gbif
-        if (gbifMatchMode in ('scientificname','canonicalname') and ( infoTax.get('confidence') is None or infoTax.get('confidence') < 90)):
-            None
-        if (infoTax.get('matchType') == 'NONE'):
+        raise Exception("No acceptable gbifMatchMode were provided")
+    if(kwargs.get('gbifMatchMode') in ('scientificname','canonicalname')):
+        if(infoTax.get("matchType") == "EXACT" or infoTax.get('confidence') >=90):
+            foundGbif = True
+            infoTax.update(get_gbif_tax_from_id(infoTax.get('usageKey')))
+    # We need to update the information as well if the taxon is of a level lower than species, because canonicalnames are given without markers, which is not the way it is in the species lists
+    if(foundGbif and infoTax.get('rank') in ('SUBSPECIES','VARIETY','FORM','SUBVARIETY','SUPERSPECIES','SUBGENUS','TRIBE')):
+        infoTax.update(get_gbif_parsed_from_sci_name(infoTax.get('scientificName')))
+    infoTax['foundGbif'] = foundGbif
+    return infoTax
+    
+def format_infoTax()
+    # Here we need to format the data from gbif from species matching ()into something that could feed the database
+    None
+
+def insert_tax(**kwargs):
+    # Managing matchtype, precision and potential need to get all the informations if no confident match is found from gbif
+    if (kwargs.get('gbifMatchMode') in ('scientificname','canonicalname') and ( infoTax.get('confidence') is None or infoTax.get('confidence') < 90)):
+        None
+    if (infoTax.get('matchType') == 'NONE'):
         # We are here in the cases where the information is not on gbif, the function should have been given sufficient information to populate the database "by hand"            
         
         # Managing synonyms: note in case of synonyms, we need to be sure all synonyms in the database will be attached to the same taxon status
@@ -135,3 +159,34 @@ def insert_tax(**kwargs):
         # final insertion
         return infoTax
 
+def manageInputTax(**kwargs):
+    syno = False
+    kwargs.update(test_taxInDb(**kwargs))
+    if (not kwargs.get('alreadyInDb')):
+        infoTax = get_infoTax(**kwargs)
+        # In case we did not find the taxon at first be it is indeed in the database
+        recheck = test_taxInDb(gbifkey=infoTax('usageKey'))
+        kwargs['alreadyInDb']=recheck['alreadyInDb']
+        kwargs['idTax'] = recheck['idTax']
+    if (not kwargs.get('alreadyInDb')):
+        # synonyms
+        if(infoTax.get('foundGbif') and infoTax.get('synonym')): # synonym found through gbif, note: all synonym info from the arguments (positive, negative, precise or not) in the function will not be considered... GBIF being our backbone here!
+            syno = True
+            synoArgs = {'gbifkey':infoTax.get('acceptedUsageKey')}
+        if(not infoTax.get('foundGbif') and (kwargs.get('synogbifkey') is not None or kwargs.get('synoscientificname') is not None or kwargs.get('synocanonicalname') is not None)):
+            syno = True
+            synoArgs = {gbifkey: kwargs.get('synogbifkey'), scientificname: kwargs.get('synoscientificname'), canonicalname: kwargs.get('synocanonicalname')}
+        if(syno): 
+            synoArgs.update(test_taxInDb(**synoArgs))
+            if(not synoArgs.get('alreadyInDb')):
+                infoAccepted = get_infoTax(**synoArgs)
+                recheckSyno = test_taxInDb(gbifkey=infoAccepted['usageKey'])
+                synoArgs['alreadyInDb'] = recheckSyno['alreadyInDb']
+                synoArgs['idTax'] = recheckSyno ['idTax']
+                tmp_var = (infoTax,infoAccepted)
+        else:
+            tmp_var=(infoTax)
+    return tmp_var
+
+manageInputTax(scientificname='Acacia farnesiana (L.) Willd.')
+kwargs={'scientificname':'Acacia farnesiana (L.) Willd.'}
