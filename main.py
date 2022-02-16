@@ -76,11 +76,10 @@ def test_taxInDb(connection,**kwargs):
                 diffTaxName = fuzz.ratio(nameTaxDb,kwargs.get('canonicalname'))
                 if (diffTaxName < 0.75):
                     raise Exception("Name of the taxon does not correspond to gbifkey")
-                else:
-                    alreadyInDb = True
-                    SQL = "SELECT id_tax FROM taxon WHERE gbifkey = %s"
-                    cur.execute(SQL,[kwargs.get('gbifkey')])
-                    idTax,  = cur.fetchone()
+            alreadyInDb = True
+            SQL = "SELECT id_tax FROM taxon WHERE gbifkey = %s"
+            cur.execute(SQL,[kwargs.get('gbifkey')])
+            idTax,  = cur.fetchone()
         elif (gbifKeyInDb_nb == 0):
             gbifMatchMode = 'gbifkey'
         else :
@@ -91,7 +90,7 @@ def test_taxInDb(connection,**kwargs):
         gbifSciInDb_nb, = cur.fetchone()
         if (gbifSciInDb_nb == 1):
             alreadyInDb = True
-            SQL = "SELECT id_tax FROM taxon WHERE gbifkey = %s"
+            SQL = "SELECT id_tax FROM taxon WHERE name_auth = %s"
             cur.execute(SQL,[kwargs.get('scientificname')])
             idTax,  = cur.fetchone()
         elif (gbifSciInDb_nb == 0):
@@ -152,19 +151,19 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
     hasSciName = inputTax.get('scientificname') is not None
     hasCanoName = inputTax.get('canonicalname') is not None
     hasAuth = inputTax.get('authorship')
-    hasSup = inputTax.get('tax_sup') is not None
+    hasSup = inputTax.get('parentcanonicalname') is not None or inputTax.get('parentscientificname') is not None or inputTax.get('parentgbifkey') is not None
     hasRank = inputTax.get('rank')
     syno = inputTax.get('syno')
+    parentTax = {'canonicalname':inputTax.get('parentcanonicalname'),'scientificname':inputTax.get('parentscientificname'),'gbifkey':inputTax.get('parentgbifkey')}
     # status: since this is the case where taxa are not found in gbif, the taxon will be noted as either synonym or doubtful
     if(syno):
         status = 'SYNONYM'
-        name_sup = None
     else:
         status = 'DOUBTFUL'
     if(hasRank and hasCanoName and hasSciName and (hasSup or syno)):
         rank, level_rank = get_rank(connection,inputTax.get('rank'))
-        if (not syno):
-            name_sup = inputTax.get('tax_sup')
+        #if (not syno):
+        #    name_sup = inputTax.get('tax_sup')
         name = inputTax.get('canonicalname')
         name_auth = inputTax.get('scientificname')
     else:
@@ -181,13 +180,14 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
                 raise Exception("No way to determine the taxon rank")
         else:
             rank, level_rank = get_rank(connection,inputTax.get('rank'))
-        if(not hasSup):
+        if(parentTax.get('canonicalname') is None):
             if(rank_level < 5):#infraspecies: the superior rank is the species which we can get by association between the genus and the epithet
-                name_sup = parsed.get('genusOrAbove') + ' ' + parsed.get('specificEpithet')
+                parentTax['canonicalName'] = parsed.get('genusOrAbove') + ' ' + parsed.get('specificEpithet')
             elif (rank_level == 5):
-                name_sup = parsed.get('genusOrAbove')
+                parentTax['canonicalname'] = parsed.get('genusOrAbove')
             else:
-                raise Exception("No sure way to determine the superior taxon")
+                if(not hasSup and not syno)
+                    raise Exception("No sure way to determine the superior taxon")
     if(not hasAuth and name in name_auth):
         extractAuth = name_auth.replace(name,'')
         auth = re.sub("^ *(.+) *$","\1",extractAuth)
@@ -195,9 +195,9 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
             auth = None
     else:
         auth = inputTax.get('authorship')
-    return {'name': name, 'name_auth': name_auth, 'auth': auth, 'tax_rank_name': rank, 'name_sup': name_sup, 'sup_gbif_key': None, 'accepted_name': acceptedName, 'accepted_id': acceptedId,'status': status, 'gbifkey': None, 'source': inputTax.get('source')}
+    return {'name': name, 'name_auth': name_auth, 'auth': auth, 'tax_rank_name': rank, 'status': status, 'gbifkey': None, 'source': inputTax.get('source')}, parentTax
 
-def format_gbif_tax(connection, acceptedId,**gbif_tax):
+def format_gbif_tax(connection,**gbif_tax):
     rank, level_rank = get_rank(connection, gbif_tax.get('rank'))
     if(level_rank < 5):
         parsed = get_gbif_parsed_from_id(gbif_tax.get('key'))
@@ -205,27 +205,26 @@ def format_gbif_tax(connection, acceptedId,**gbif_tax):
         name_auth = parsed.get('scientificName')
     else:
         name = gbif_tax.get('canonicalName')
-        name_auth
-    if(gbif_tax.get('synonym')):
-        name_sup = None
-        sup_gbif_key = None
+        name_auth = gbif_tax.get('scientificName')
+    if(gbif_tax.get('syno')):
+        status = 'SYNONYM'
     else:
-        name_sup = gbif_tax.get('parent')
-        sup_gbif_key = gbif_tax.get('parentKey')
-    return {'name': name, 'name_auth': name_auth, 'auth': gbif_tax.get('authorship'), 'tax_rank_name': rank, 'name_sup': name_sup, 'sup_gbif_key': sup_gbif_key, 'accepted_name': gbif_tax.get('accepted'), 'accepted_id': acceptedId, status: gbif_tax.get('status'), source : None}
+        status = gbif_tax.get('status')
+        if (status is None):
+            status = gbif_tax.get('taxonomicStatus')
+    parentTax = {'gbifkey': gbif_tax.get('parentKey'), 'canonicalname': gbif_tax.get('parent')}
+    return {'name': name, 'name_auth': name_auth, 'auth': gbif_tax.get('authorship'), 'tax_rank_name': rank, 'status': status, 'gbifkey': gbif_tax.get('key'), 'source' : None}, parentTax
 
-def insert_tax(**kwargs):
-    # Managing matchtype, precision and potential need to get all the informations if no confident match is found from gbif
-    if (kwargs.get('gbifMatchMode') in ('scientificname','canonicalname') and ( infoTax.get('confidence') is None or infoTax.get('confidence') < 90)):
-        None
-    if (infoTax.get('matchType') == 'NONE'):
-        # We are here in the cases where the information is not on gbif, the function should have been given sufficient information to populate the database "by hand"            
-        
-        # Managing synonyms: note in case of synonyms, we need to be sure all synonyms in the database will be attached to the same taxon status
-        # Managing parents
-        # In the process of parents and taxonomic level, it might be important to get the parsed names in case of underspecies taxa because canonicalnames in these cases come without markers, but most probably will come with it in the user lists. (I can't think of any case where this could happen in higher levels though)
-        # final insertion
-        return infoTax
+def format_parents(connection,parents):
+    idParentInDb = None
+    listFormatted = []
+    for i in parents:
+        i.update(test_taxInDb(connection,**{'gbifkey':i.get('key')}))
+        if(i.get('alreadyInDb')):
+            idParentInDb=i.get('idTax')
+        else:
+            listFormatted.append({'name':i.get('canonicalName'), 'name_auth': i.get('scientificName'),'auth':i.get('authorship'),'tax_rank_name': i.get('rank'), 'status': i.get('taxonomicStatus'), 'gbifkey':i.get('key'), 'source': None})
+    return idParentInDb, listFormatted
 
 def acceptedId(connection,id_tax:int):
     cur = connection.cursor()
@@ -235,7 +234,13 @@ def acceptedId(connection,id_tax:int):
     cur.close()
     return res
 
-
+def insertTax(cursor,idParent,idSyno,**tax):
+    SQL = "WITH a AS( SELECT %s AS name, %s AS name_auth, %s AS auth, %s AS name_rank, %s AS status, %s AS gbif_key, %s AS source, %s AS cd_sup, %s AS cd_syno), b AS (SELECT name, name_auth, CASE WHEN NOT auth ~ '^ *$' THEN auth ELSE NULL END AS auth, id_rank,cd_sup::int, cd_syno::int, status, gbif_key, source::int FROM a JOIN tax_rank t ON a.name_rank=t.rank_name)  INSERT INTO taxon(name,name_auth,auth,tax_rank,cd_sup,cd_syno,status, gbifkey, source) SELECT * FROM b RETURNING id_tax"
+    cursor.execute(SQL,(tax.get('name'), tax.get('name_auth'), tax.get('auth'), tax.get('tax_rank_name'),tax.get('status'), tax.get('gbifkey'),tax.get('source'),idParent,idSyno))
+    idInserted, = cursor.fetchone()
+    return idInserted
+    
+    
 # TODO : since panda does not simplify particularly the method to write a table in the postgres database, it would be better to remove all the panda dependency and keep only dictionaries...
 # if the direct parent is not in the database
 # testing its presence in gbif
@@ -249,76 +254,78 @@ def manageInputTax(**inputTax):
     syno = False
     inputTax.update(test_taxInDb(connection=conn,**inputTax))
     if (not inputTax.get('alreadyInDb')):
-        infoBaseTax = get_infoTax(**inputTax)
-        infoBaseTax['syno'] = False
+        inputTax.update(get_infoTax(**inputTax))
+        inputTax['syno'] = False
         # In case we did not find the taxon at first be it is indeed in the database
-        recheck = test_taxInDb(connection=conn,gbifkey=infoBaseTax['key'])
+        recheck = test_taxInDb(connection=conn,gbifkey=inputTax.get('key'))
         inputTax['alreadyInDb']=recheck.get('alreadyInDb')
         inputTax['idTax'] = recheck.get('idTax')
     if (not inputTax.get('alreadyInDb')):
         # synonyms
-        if(infoBaseTax.get('foundGbif') and infoBaseTax.get('synonym')): # synonym found through gbif, note: all synonym info from the arguments (positive, negative, precise or not) in the function will not be considered... GBIF being our backbone here!
+        if(inputTax.get('foundGbif') and inputTax.get('synonym')): # synonym found through gbif, note: all synonym info from the arguments (positive, negative, precise or not) in the function will not be considered... GBIF being our backbone here!
             syno = True
-            infoBaseTax['syno'] = True
-            infoSyno = infoBaseTax
-            synoArgs = inputTax
-            synoArgs['syno'] = True
-            acceptedArgs = {'gbifkey':infoSyno.get('acceptedUsageKey')}
-        if(not infoBaseTax.get('foundGbif') and (inputTax.get('synogbifkey') is not None or inputTax.get('synoscientificname') is not None or inputTax.get('synocanonicalname') is not None)):
+            inputTax['syno'] = True
+            acceptedTax = {'gbifkey':inputTax.get('acceptedUsageKey')}
+        if(not inputTax.get('foundGbif') and (inputTax.get('synogbifkey') is not None or inputTax.get('synoscientificname') is not None or inputTax.get('synocanonicalname') is not None)):
             syno = True
-            infoBaseTax['syno'] = True
-            infoSyno = infoBaseTax
-            synoArgs = inputTax
-            synoArgs['syno'] = True
-            acceptedArgs = {gbifkey: inputTax.get('synogbifkey'), scientificname: inputTax.get('synoscientificname'), canonicalname: inputTax.get('synocanonicalname')}
+            inputTax['syno'] = True
+            acceptedTax = {gbifkey: inputTax.get('synogbifkey'), scientificname: inputTax.get('synoscientificname'), canonicalname: inputTax.get('synocanonicalname')}
         if(syno): 
-            acceptedArgs.update(test_taxInDb(connection=conn,**acceptedArgs))
-            if(not synoArgs.get('alreadyInDb')):
-                infoAccepted = get_infoTax(**synoArgs)
-                acceptedArgs['syno'] = False
-                recheckAccepted = test_taxInDb(connection=conn,gbifkey=infoAccepted.get('key'))
-                acceptedArgs['alreadyInDb'] = recheckAccepted.get('alreadyInDb')
-                acceptedArgs['idTax'] = recheckAccepted.get('idTax')
+            acceptedTax.update(test_taxInDb(connection=conn,**acceptedTax))
+            if(not acceptedTax.get('alreadyInDb')):
+                acceptedTax.update(get_infoTax(**acceptedTax))
+                acceptedTax['syno'] = False
+                recheckAccepted = test_taxInDb(connection=conn,gbifkey=acceptedTax.get('key'))
+                acceptedTax['alreadyInDb'] = recheckAccepted.get('alreadyInDb')
+                acceptedTax['idTax'] = recheckAccepted.get('idTax')
         # The smart  move I think would be to manage formats (taxa recognized or not by gbif) here in order to:
         # - get the ranks
         # - get the simplified versions of taxa before going to parents
         # - change the names of dictionaries in order to get the "accepted" taxon in one variable, synonyms or not, recognized by gbif or not
-        insertDF = pd.DataFrame()
-        if(not infoBaseTax.get('foundGbif')):
-            if(syno):
-                acc=format_inputTax(conn,**acceptedArgs)
-                insertDF.append(acc)
+            if(not acceptedTax.get('alreadyInDb')):
+                if(acceptedTax.get('foundGbif')):
+                    accepted, parentTax = format_gbif_tax(connection=conn, **acceptedTax)
+                else:
+                    accepted, parentTax = format_inputTax(connection=conn, **acceptedTax)
+            if(inputTax.get('foundGbif')):
+                synonym, synoParent = format_gbif_tax(connection=conn, **inputTax)
             else:
-                acc=format_inputTax(conn,**inputTax)
-                insertDF.append(acc)
+                synonym, synoParent = format_inputTax(connection=conn, **inputTax)
         else:
-            if(syno)
-                acc=format_gbif_tax(**infoAccepted)
-                insertDF.append(acc)
+            if(not inputTax.get('alreadyInDb')):
+                if(inputTax.get('foundGbif')):
+                    accepted, parentTax = format_gbif_tax(connection=conn, **inputTax)
+                else:
+                    accepted, parentTax = format_input_tax(connection=conn, acceptedName = None, acceptedId=None,**inputTax)
+        
+        parentTax.update(test_taxInDb(conn,**parentTax))
+        if(not parentTax.get('alreadyInDb')):
+            if(accepted.get('gbifkey') is None):
+                parentTax.update(get_infoTax(**parentTax))
+                if (not parentTax.get('foundGbif')):
+                    raise Exception('Parent taxa not found')
+                parents = get_gbif_parent(parentTax.get('key'))
+                parents.append(parentTax)
             else:
-                acc=format_gbif_tax(**infoBaseTax)
-                insertDF.append(acc)
-        if(syno and not synoArgs.get('alreadyInDb')):
-            if(acceptedArgs.get('alreadyInDb')):
-                synoArgs['dbaccepted_id'] = acceptedArgs['idTax']# Here we need to get the scientificname from the database, or change the functions in order to accept directly the id_syno in the table
-            else:
-                synoArgs['acceptedsciname']=acc[0,'name_auth']# Here it works only whether acc is created (which means the acceptedname is not alreadyInDb)
-            if(synoArgs.get('foundGbif')):
-                format_gbif_tax(conn,**infoSyno)
-            else:
-                synoDF = format_inputTax(conn,**synoArgs)
+                parents = get_gbif_parent(accepted.get('gbifkey'))
+            idParentInDb, parentsFormatted = format_parents(conn,parents)
+        with conn:
+            with conn.cursor() as cur:
+                if(not parentTax.get('alreadyInDb')):
+                    for i in range(0,len(parentsFormatted)):
+                        idParentInDb = insertTax(cur,idParentInDb,None,**parentsFormatted[i])
+                else:
+                    idParentInDb=parentTax.get('idTax')
+                if(syno and acceptedTax.get('alreadyInDb')):
+                    accId=accepted.get('idTax')
+                else:
+                    accId=insertTax(cur,idParentInDb,idSyno=None,**accepted)
+                if(syno):
+                    insertTax(cur, None, accId, **synonym)
+        cur.close()
         conn.close()
     else:
-        
+        accId = acceptedId(connection=conn,id_tax=inputTax.get('idTax'))
         conn.close()
-    # parents: note that for now we will take parents only for the accepted names, synonyms in the taxon table will be considered as not having parents. Note that if the 
-    #3 cases:
-    # Not syno and found in gbif -> look and search for parents 
-    # syno and accepted found in gbif (it does not matter yet that the synomym is not found in gbif)
-    # Not syno and not found in gbif -> parse name, verify parent name
-    # syno and accepted not found in gbif -> parse 
-    
     return accId
 
-manageInputTax(scientificname='Acacia farnesiana (L.) Willd.')
-inputTax={'scientificname':'Acacia farnesiana (L.) Willd.'}
