@@ -5,3 +5,5 @@ psycopg2-binary
 pandas
 flask
 gunicorn
+pydantic
+pydantic_webargs

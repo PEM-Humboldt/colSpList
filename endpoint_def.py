@@ -1,15 +1,11 @@
 from flask import Flask, render_template, jsonify
 from flask_restful import Resource, Api
-from main import exp_act_joke
-from main import act_joke
-from main import export_log
-from main import export_log_complete
+from main import manageInputTax
+from webargs import fields, validate,missing
+from webargs.flaskparser import parser
+from webargs.flaskparser import use_args,use_kwargs
 import psycopg2
 import os
-
-DATABASE_URL = os.environ['DATABASE_URL']
-conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-
 
 class testEndem(Resource):
     def get(self, name):
@@ -36,7 +32,9 @@ class insertThreat(Resource):
         return None
 
 class insertTaxo(Resource):
-    def post(self):
-        return None
+    taxInputArgs = {'gbifkey':fields.Int(required=False),'scientificname':fields.Str(required=False),'canonicalname':fields.Str(required=False)}
+    @use_kwargs(taxInputArgs)
+    def post(self,**dictInput):
+        return manageInputTax(**dictInput)
 
     

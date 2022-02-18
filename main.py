@@ -186,7 +186,7 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
             elif (rank_level == 5):
                 parentTax['canonicalname'] = parsed.get('genusOrAbove')
             else:
-                if(not hasSup and not syno)
+                if(not hasSup and not syno):
                     raise Exception("No sure way to determine the superior taxon")
     if(not hasAuth and name in name_auth):
         extractAuth = name_auth.replace(name,'')
