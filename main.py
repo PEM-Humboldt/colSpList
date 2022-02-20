@@ -329,3 +329,73 @@ def manageInputTax(**inputTax):
         conn.close()
     return accId
 
+
+def manageSource(cursor, ref_citation, ref_link):
+    # Does the source exist
+    SQL = "SELECT count(*) FROM refer WHERE citation = %s"
+    cursor.execute(SQL, [ref_citation])
+    nb, = cursor.fetchone()
+    cit_exists = bool(nb)
+    if cit_exists:
+        SQL = "SELECT cd_ref FROM refer WHERE citation = %s"
+        cursor.execute(SQL, ref_citation)
+        cdRef = cursor.fetchone()
+    else:
+        # insertion of the source if it does not exist
+        SQL = "INSERT INTO refer(citation,link) VALUES(%s,%s) RETURNING cd_ref"
+        cursor.execute(SQL,[ref_citation, ref_link])
+        cdRef = cursor.fetchone()
+    # it should return the id of the source in the database
+    return(cdRef)
+
+def getThreatStatus(cursor, id_tax):
+    SQL = "SELECT cd_status, comments, STRING_AGG(r.citation, ' | ' ORDER BY cd_ref) AS references, STRING_AGG(r.link, ' | ' ORDER BY cd_ref) AS links
+    FROM threat t
+    LEFT JOIN ref_threat rt ON t.cd_tax=rt.cd_tax
+    LEFT JOIN refer r ON rt.cd_ref=r.cd_ref
+    WHERE cd_tax=%s"
+    cursor.execute(SQL,[id_tax])
+    res, =cursor.fetchone()
+    return res
+    
+def manageInputThreat(id_tax, connection, **inputThreat):
+    # test whether status is compatible with the database specification
+    cur = connection.cursor()
+    SQL = "SELECT count(*) FROM threat_status WHERE id_status = %s"
+    cur.execute(SQL, [inputThreat.get('threatstatus')])
+    nb, = cur.fetchone()
+    compatible = bool(nb)
+    if (not compatible):
+        Raise Exception("The input threat status is not recognized")
+    else:
+        # find the threat status if it exists in the database
+        SQL = "SELECT count(*) FROM threat WHERE cd_tax=%s"
+        cur.execute(SQL,[id_tax])
+        nb, = cur.fetchone()
+        statusExists = bool(nb)
+        if statusExists:
+            # if it exists, look whether it is compatible with the current status
+            threatStatus = getThreatStatus(cur,id_tax)
+            sameStatus = (threatStatus == inputThreat['threatStatus'])
+            if(not sameStatus):
+                raise Exception("The taxon already exists in the database with another threat status")
+    cur.close()
+    with connection:
+        with connection.cursor() as cur:
+            cdRefs = [manageSource(cur,inputThreat['ref_citation'][i],inputThreat.get('link')[i] if inputThreat.get('link') else None) for i in range(len(inputThreat['ref_citation']))]
+            if not statusExists:
+                # if it is compatible with an existing status, insert the new source and make the link with the taxon
+                SQL = "INSERT INTO threat(cd_tax,cd_status,comments) VALUES (%s,%s,%s)"
+                cur.execute(SQL, [id_tax, inputThreat['threatStatus'],inputThreat.get('comments')])
+                # if it does not exist insert the source, the status and make the links
+                for i in range(len(cdRefs)):
+                    SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_threat USING cd_ref,cd_tax) INSERT INTO ref_threat(cd_ref, cd_tax) SELECT * FROM b WHERE id IS NULL"
+                    cur.execute(SQL,[cdRefs[i],id_tax])
+    return {id_tax,cdRefs}
+
+
+def insertHabito(id_tax,connection,**inputHabito):
+    None
+
+def insertEndem(id_tax,connection,**inputEndem):
+    None

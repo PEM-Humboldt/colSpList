@@ -117,13 +117,29 @@ CREATE TABLE exot
 CREATE TABLE threat_status
 (
     id_status varchar(15) PRIMARY KEY,
+    level int NOT NULL,
     status_descr text
 );
+
+INSERT INTO threat_status
+VALUES 
+('NE',0,'Not Evaluated'),
+('DD',1,'Data Deficient'),
+('LC',2,'Least Concern'),
+('NT',3,'Near Threatened'),
+('VU',4,'Vulnerable'),
+('EN',5,'Endangered'),
+('CR',6,'Critically endangered'),
+('EW',7,'Extinct in the wild'),
+('CR',8,'Extinct');
+
+
     
 CREATE TABLE threat
 (
     cd_tax integer PRIMARY KEY REFERENCES taxon(id_tax),
     cd_status varchar(15) REFERENCES threat_status(id_status),
+    comments text,
     comment text
 );
 
@@ -146,7 +162,9 @@ CREATE TABLE ref_endem
     id serial PRIMARY KEY,
     cd_ref integer REFERENCES refer(cd_ref) ON DELETE CASCADE ON UPDATE CASCADE,
     cd_tax integer REFERENCES endemicas(cd_tax) ON DELETE CASCADE ON UPDATE CASCADE,
-    comment text
+    comment text,
+    UNIQUE (cd_ref, cd_tax)
+    
 );
 
 CREATE TABLE ref_exot
@@ -154,7 +172,8 @@ CREATE TABLE ref_exot
     id serial PRIMARY KEY,
     cd_ref integer REFERENCES refer(cd_ref) ON DELETE CASCADE ON UPDATE CASCADE,
     cd_tax integer REFERENCES exot(cd_tax)  ON DELETE CASCADE ON UPDATE CASCADE,
-    comment text
+    comment text,
+    UNIQUE (cd_ref,cd_tax)
 );
 
 CREATE TABLE ref_theat
@@ -162,5 +181,6 @@ CREATE TABLE ref_theat
     id serial PRIMARY KEY,
     cd_ref integer REFERENCES refer(cd_ref) ON DELETE CASCADE ON UPDATE CASCADE,
     cd_tax integer REFERENCES threat(cd_tax) ON DELETE CASCADE ON UPDATE CASCADE,
-    comment text
+    comment text,
+    UNIQUE (cd_ref, cd_tax)
 );
