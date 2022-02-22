@@ -10,8 +10,12 @@ import os
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
-inputThreatArgs = taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False)}
-inputThreatArgs.update({'threatstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False)})
+inputExotArgs = inputEndemArgs = inputThreatArgs = taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False)}
+
+inputThreatArgs.update({'threatstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)})
+
+inputEndemArgs.update({'endemstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)})
+
 
 class testEndem(Resource):
     def get(self, name):
@@ -26,8 +30,12 @@ class testThreat(Resource):
         return None
 
 class insertEndem(Resource):
-    def post(self):
-        return None
+    @use_kwargs(inputEndemArgs)
+    def post(self,**inputEndem):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        id_tax = manageInputTax(**inputEndem)
+        res = manageInputEndem(id_tax, connection = conn, **inputEndem)
+        return res
 
 class insertExot(Resource):
     def post(self):
