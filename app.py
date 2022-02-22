@@ -10,6 +10,7 @@ from endpoint_def import insertEndem
 from endpoint_def import insertExot
 from endpoint_def import insertThreat
 from endpoint_def import insertTaxo
+PYTHONIOENCODING="UTF-8"
 
 args_taxo_insert = {
     'gbifkey' : fields.Int(required=False),

@@ -131,7 +131,7 @@ VALUES
 ('EN',5,'Endangered'),
 ('CR',6,'Critically endangered'),
 ('EW',7,'Extinct in the wild'),
-('CR',8,'Extinct');
+('EX',8,'Extinct');
 
 
     
@@ -145,15 +145,26 @@ CREATE TABLE threat
 
 CREATE TABLE nivel_endem
 (
-    id_nivel varchar(15) PRIMARY KEY,
-    descr_endem text
+    cd_nivel integer PRIMARY KEY,
+    descr_endem_en text,
+    descr_endem_es text
 );
 
-CREATE TABLE endemicas
+INSERT INTO nivel_endem
+VALUES
+(0, 'Unsuficient information', 'Información insuficient') 
+(1, 'Species of interest', 'Especie de interés'),
+(2, 'Almost endemic by area', 'Casi endémica por area')
+(3, 'Almost endemic', 'Casi endémica'),
+(4, 'Endemic', 'Endémica');
+
+
+CREATE TABLE endemic
 (
     cd_tax integer PRIMARY KEY REFERENCES taxon(id_tax),
     cd_nivel varchar(15) REFERENCES nivel_endem(id_nivel),
-    distrib_remarks text
+    distrib_remarks text,
+    comments text
 );
 
 
@@ -164,7 +175,6 @@ CREATE TABLE ref_endem
     cd_tax integer REFERENCES endemicas(cd_tax) ON DELETE CASCADE ON UPDATE CASCADE,
     comment text,
     UNIQUE (cd_ref, cd_tax)
-    
 );
 
 CREATE TABLE ref_exot
@@ -176,7 +186,7 @@ CREATE TABLE ref_exot
     UNIQUE (cd_ref,cd_tax)
 );
 
-CREATE TABLE ref_theat
+CREATE TABLE ref_threat
 (
     id serial PRIMARY KEY,
     cd_ref integer REFERENCES refer(cd_ref) ON DELETE CASCADE ON UPDATE CASCADE,
