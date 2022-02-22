@@ -10,7 +10,7 @@ import os
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
-inputExotArgs = inputEndemArgs = inputThreatArgs = taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False)}
+inputExotArgs = inputEndemArgs = inputThreatArgs = taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False), 'authorship':fields.Str(required=False), 'syno':fields.Bool(required=False), 'rank': fields.Str(required=False), 'parentgbifkey':fields.Int(required=False), 'parentcanonicalname':fields.Str(required=False), 'parentscientificname':fields.Str(required=False), 'synogbifkey':fields.Int(required=False), 'synocanonicalname':fields.Str(required=False), 'synoscientificname':fields.Str(required=False) }
 
 inputThreatArgs.update({'threatstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)})
 
@@ -51,7 +51,6 @@ class insertThreat(Resource):
         return res
 
 class insertTaxo(Resource):
-    taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False)}
     @use_kwargs(taxInputArgs)
     def post(self,**dictInput):
         return manageInputTax(**dictInput)
