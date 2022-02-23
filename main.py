@@ -301,8 +301,10 @@ def manageInputTax(**inputTax):
                     accepted, parentTax = format_gbif_tax(connection=conn, **inputTax)
                 else:
                     accepted, parentTax = format_inputTax(connection=conn, acceptedName = None, acceptedId=None,**inputTax)
-        
-        parentTax.update(test_taxInDb(conn,**parentTax))
+        if syno and acceptedTax.get('alreadyInDb'):
+            parentTax = {'alreadyInDb': True}
+        else:
+            parentTax.update(test_taxInDb(conn,**parentTax))
         if(not parentTax.get('alreadyInDb')):
             if(accepted.get('gbifkey') is None):
                 parentTax.update(get_infoTax(**parentTax))
@@ -321,7 +323,7 @@ def manageInputTax(**inputTax):
                 else:
                     idParentInDb=parentTax.get('idTax')
                 if(syno and acceptedTax.get('alreadyInDb')):
-                    accId=accepted.get('idTax')
+                    accId=acceptedTax.get('idTax')
                 else:
                     accId=insertTax(cur,idParentInDb,idSyno=None,**accepted)
                 if(syno):
