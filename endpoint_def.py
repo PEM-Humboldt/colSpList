@@ -2,32 +2,64 @@ from flask import Flask, render_template, jsonify
 from flask_restful import Resource, Api
 from main import manageInputTax
 from main import manageInputThreat
+from main import manageInputEndem
+from main import manageInputExot
+from main import testEndemStatus
+from main import testExotStatus
+from main import testThreatStatus
 from webargs import fields, validate,missing
 from webargs.flaskparser import parser
-from webargs.flaskparser import use_args,use_kwargs
+from webargs.flaskparser import use_args,use_kwargs,abort
 import psycopg2
 import os
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
-inputExotArgs = inputEndemArgs = inputThreatArgs = taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False), 'authorship':fields.Str(required=False), 'syno':fields.Bool(required=False), 'rank': fields.Str(required=False), 'parentgbifkey':fields.Int(required=False), 'parentcanonicalname':fields.Str(required=False), 'parentscientificname':fields.Str(required=False), 'synogbifkey':fields.Int(required=False), 'synocanonicalname':fields.Str(required=False), 'synoscientificname':fields.Str(required=False) }
+taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False), 'authorship':fields.Str(required=False), 'syno':fields.Bool(required=False), 'rank': fields.Str(required=False), 'parentgbifkey':fields.Int(required=False), 'parentcanonicalname':fields.Str(required=False), 'parentscientificname':fields.Str(required=False), 'synogbifkey':fields.Int(required=False), 'synocanonicalname':fields.Str(required=False), 'synoscientificname':fields.Str(required=False) }
 
-inputThreatArgs.update({'threatstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)})
+# TODO: check, for link, how to authorize some of the element of a list to be None and how to force the link and ref_citation to be of the same size
 
-inputEndemArgs.update({'endemstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)})
+inputThreatArgs={'threatstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)}
+inputThreatArgs.update(taxInputArgs)
+
+
+inputEndemArgs={'endemstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)}
+inputEndemArgs.update(taxInputArgs)
+
+inputExotArgs={'is_alien':fields.Bool(required=True), 'is_invasive': fields.Bool(required=True), 'occ_observed': fields.Bool(required=False),'cryptogenic': fields.Bool(required=False), 'ref_citation':fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(),required=False), 'comments': fields.Str(required=False)}
+inputExotArgs.update(taxInputArgs)
 
 
 class testEndem(Resource):
-    def get(self, name):
-        return None
+    @use_kwargs(taxInputArgs,location="query")
+    @use_kwargs(taxInputArgs,location="json")
+    def get(self, **inputArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        id_tax = manageInputTax(**inputArgs)
+        res = testEndemStatus(conn,id_tax)
+        conn.close()
+        return res
+        
         
 class testExot(Resource):
-    def get(self):
-        return None
+    @use_kwargs(taxInputArgs,location="query")
+    @use_kwargs(taxInputArgs,location="json")
+    def get(self, **inputArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        id_tax = manageInputTax(**inputArgs)
+        res = testExotStatus(conn,id_tax)
+        conn.close()
+        return res
 
 class testThreat(Resource):
-    def get(self):
-        return None
+    @use_kwargs(taxInputArgs,location="query")
+    @use_kwargs(taxInputArgs,location="json")
+    def get(self, **inputArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        id_tax = manageInputTax(**inputArgs)
+        res = testThreatStatus(conn,id_tax)
+        conn.close()
+        return res
 
 class insertEndem(Resource):
     @use_kwargs(inputEndemArgs)
@@ -38,8 +70,12 @@ class insertEndem(Resource):
         return res
 
 class insertExot(Resource):
-    def post(self):
-        return None
+    @use_kwargs(inputExotArgs)
+    def post(self, **inputExot):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        id_tax = manageInputTax(**inputExot)
+        res = manageInputExot(id_tax, connection = conn, **inputExot)
+        return res
     
 class insertThreat(Resource):
     @use_kwargs(inputThreatArgs)
@@ -56,3 +92,10 @@ class insertTaxo(Resource):
         return manageInputTax(**dictInput)
 
     
+# This error handler is necessary for usage with Flask-RESTful
+@parser.error_handler
+def handle_request_parsing_error(err, req, schema, *, error_status_code, error_headers):
+    """webargs error handler that uses Flask-RESTful's abort function to return
+    a JSON error response to the client.
+    """
+    abort(error_status_code, errors=err.messages)

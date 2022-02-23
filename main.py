@@ -333,6 +333,8 @@ def manageInputTax(**inputTax):
 
 def manageSource(cursor, ref_citation, ref_link):
     # Does the source exist
+    if ref_link == ' ':
+        ref_link = None
     SQL = "SELECT count(*) FROM refer WHERE citation = %s"
     cursor.execute(SQL, [ref_citation])
     nb, = cursor.fetchone()
@@ -395,12 +397,12 @@ def insertHabito(id_tax,connection,**inputHabito):
     None
 
 def getEndemStatus(cursor, id_tax):
-    SQL = "SELECT ne.cd_nivel,ne.descr_endem_es endemism, comments, STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references, STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links FROM endemic e LEFT JOIN nivel_endem ne ON e.cd_nivel=ne.cd_nivel LEFT JOIN ref_endemic rt ON t.cd_tax=rt.cd_tax   LEFT JOIN refer r ON rt.cd_ref=r.cd_ref WHERE t.cd_tax=%s GROUP BY cd_status,comments"
+    SQL = "SELECT ne.cd_nivel,ne.descr_endem_es endemism, comments, STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references, STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links FROM endemic e LEFT JOIN nivel_endem ne ON e.cd_nivel=ne.cd_nivel LEFT JOIN ref_endem rt ON e.cd_tax=rt.cd_tax   LEFT JOIN refer r ON rt.cd_ref=r.cd_ref WHERE e.cd_tax=%s GROUP BY ne.cd_nivel, ne.descr_endem_es, comments"
     cursor.execute(SQL,[id_tax])
     res = dict(cursor.fetchone())
     return res
 
-def insertEndem(id_tax,connection,**inputEndem):
+def manageInputEndem(id_tax,connection,**inputEndem):
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     SQL = "WITH e AS (SELECT %s::text AS nivel) SELECT count(*) FROM nivel_endem,e WHERE descr_endem_es = e.nivel OR descr_endem_en = e.nivel OR cd_nivel::text=e.nivel"
     cur.execute(SQL, [inputEndem.get('endemstatus')])
@@ -438,3 +440,71 @@ def insertEndem(id_tax,connection,**inputEndem):
                 cur.execute(SQL,[cdRefs[i],id_tax])
     return {'id_tax': id_tax,'cdRefs': cdRefs}
 
+def getExotStatus(cursor, id_tax):
+    SQL = "SELECT e.is_alien, e.is_invasive, e.occ_observed, e.cryptogenic, e.comments, STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references, STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links FROM exot e LEFT JOIN ref_endem re ON e.cd_tax=re.cd_tax   LEFT JOIN refer r ON re.cd_ref=r.cd_ref WHERE e.cd_tax=%s GROUP BY e.is_alien, e.is_invasive, e.occ_observed,e.cryptogenic, e.comments"
+    cursor.execute(SQL,[id_tax])
+    res = dict(cursor.fetchone())
+    return res
+
+def manageInputExot(id_tax,connection,**inputExot):
+    cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    # find the  status if it exists in the database
+    SQL = "SELECT count(*) FROM exot WHERE cd_tax=%s"
+    cur.execute(SQL,[id_tax])
+    nb = cur.fetchone()['count']
+    statusExists = bool(nb)
+    if statusExists:
+        # if it exists, look whether it is compatible with the current status
+        exotStatus = getExotStatus(cur,id_tax)
+        sameStatus = (inputExot.get('is_alien') == exotStatus['is_alien']) and (inputExot.get('is_invasive') == exotStatus['is_invasive']) and (inputExot.get('occ_observed') == exotStatus['occ_observed']) and (inputExot.get('cryptogenic') == exotStatus['cryptogenic']) 
+        if(not sameStatus):
+            raise Exception("The taxon already exists in the database with another alien/invasive status")
+    cur.close()
+    with connection:
+        with connection.cursor() as cur:
+            cdRefs = [manageSource(cur,inputExot['ref_citation'][i],inputExot.get('link')[i] if bool(inputExot.get('link')) else None) for i in range(0,len(inputExot['ref_citation']))]
+            if not statusExists:
+                # if it is compatible with an existing status, insert the new source
+                SQL = "INSERT INTO exot(cd_tax,is_alien,is_invasive,occ_observed,cryptogenic,comments) VALUES (%s,%s,%s,%s,%s,%s)"
+                cur.execute(SQL, [id_tax,inputExot.get('is_alien'),inputExot.get('is_invasive'),inputExot.get('occ_observed'),inputExot.get('cryptogenic'),inputExot.get('comments')])
+            # if it does not exist insert the source, the status and make the links
+            for i in range(len(cdRefs)):
+                SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_exot AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_exot(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
+                cur.execute(SQL,[cdRefs[i],id_tax])
+    return {'id_tax': id_tax,'cdRefs': cdRefs}
+
+def testEndemStatus(connection,id_tax):
+    cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    SQL = "SELECT count(*) FROM endemic WHERE cd_tax = %s"
+    cur.execute(SQL,[id_tax])
+    hasEndemStatus = bool(cur.fetchone()['count'])
+    res = {'hasEndemStatus': hasEndemStatus}
+    if hasEndemStatus:
+        res.update(getEndemStatus(cur,id_tax))
+    else:
+        res.update({'cd_nivel':None, 'descr_endem_es': None, 'comments': None, 'references': None, 'links': None})
+    return res
+
+def testExotStatus(connection,id_tax):
+    cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    SQL = "SELECT count(*) FROM exot WHERE cd_tax = %s"
+    cur.execute(SQL,[id_tax])
+    hasExotStatus = bool(cur.fetchone()['count'])
+    res = {'hasExotStatus': hasExotStatus}
+    if hasExotStatus:
+        res.update(getExotStatus(cur,id_tax))
+    else:
+        res.update({'cd_nivel':None, 'is_alien': None, 'is_invasive': None, 'occ_observed': None, 'cryptogenic': None ,'comments': None,'references': None, 'links': None})
+    return res
+
+def testThreatStatus(connection,id_tax):
+    cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    SQL = "SELECT count(*) FROM threat WHERE cd_tax = %s"
+    cur.execute(SQL,[id_tax])
+    hasThreatStatus = bool(cur.fetchone()['count'])
+    res = {'hasThreatStatus': hasThreatStatus}
+    if hasThreatStatus:
+        res.update(getThreatStatus(cur,id_tax))
+    else:
+        res.update({'cd_status':None, 'comments': None, 'references': None, 'links': None})
+    return res

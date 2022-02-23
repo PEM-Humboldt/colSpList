@@ -12,10 +12,6 @@ from endpoint_def import insertThreat
 from endpoint_def import insertTaxo
 PYTHONIOENCODING="UTF-8"
 
-args_taxo_insert = {
-    'gbifkey' : fields.Int(required=False),
-    'canonicalname' : fields.Str(required=False),
-    'scientificname': fields.Str(required=False)}
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 api = Api(app)

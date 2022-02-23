@@ -102,17 +102,24 @@ CREATE TABLE uso
     descr_uso text
 );
 
+CREATE TABLE habito
+(
+    cd_tax integer REFERENCES taxon("id_tax") NOT NULL
+    habito varchar(25) NOT NULL
+)
+;
+
 CREATE TABLE exot
 (
     cd_tax integer PRIMARY KEY REFERENCES taxon(id_tax),
-    cd_pres varchar(15) REFERENCES pres_status(id_pres),
-    cd_habito varchar(15) REFERENCES habito(id_habito),
-    cd_type_intro varchar(15) REFERENCES type_intro(id_type),
-    inva boolean,
-    origen text,
-    cd_uso varchar(15) REFERENCES uso(cd_uso),
-    comment text
+    is_alien boolean,
+    is_invasive boolean,
+    occ_observed boolean,
+    cryptogenic boolean,
+    comments text
 );
+
+
 
 CREATE TABLE threat_status
 (
@@ -152,9 +159,9 @@ CREATE TABLE nivel_endem
 
 INSERT INTO nivel_endem
 VALUES
-(0, 'Unsuficient information', 'Información insuficient') 
+(0, 'Unsuficient information', 'Información insuficient'), 
 (1, 'Species of interest', 'Especie de interés'),
-(2, 'Almost endemic by area', 'Casi endémica por area')
+(2, 'Almost endemic by area', 'Casi endémica por area'),
 (3, 'Almost endemic', 'Casi endémica'),
 (4, 'Endemic', 'Endémica');
 
@@ -162,8 +169,7 @@ VALUES
 CREATE TABLE endemic
 (
     cd_tax integer PRIMARY KEY REFERENCES taxon(id_tax),
-    cd_nivel varchar(15) REFERENCES nivel_endem(id_nivel),
-    distrib_remarks text,
+    cd_nivel integer REFERENCES nivel_endem(cd_nivel),
     comments text
 );
 
@@ -172,7 +178,7 @@ CREATE TABLE ref_endem
 (
     id serial PRIMARY KEY,
     cd_ref integer REFERENCES refer(cd_ref) ON DELETE CASCADE ON UPDATE CASCADE,
-    cd_tax integer REFERENCES endemicas(cd_tax) ON DELETE CASCADE ON UPDATE CASCADE,
+    cd_tax integer REFERENCES endemic(cd_tax) ON DELETE CASCADE ON UPDATE CASCADE,
     comment text,
     UNIQUE (cd_ref, cd_tax)
 );
