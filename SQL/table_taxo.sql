@@ -200,3 +200,27 @@ CREATE TABLE ref_threat
     comment text,
     UNIQUE (cd_ref, cd_tax)
 );
+
+
+CREATE VIEW exotList AS(
+    SELECT 
+        t.name_auth,
+        t_par.name_auth parentname,
+        t.tax_rank,
+        t.gbifkey,
+        STRING_AGG (t_synos.name_auth, ' | ') synonyms,
+        e.is_alien,
+        e.is_invasive,
+        e.occ_observed,
+        e.cryptogenic,
+        e.comments,
+        STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references,
+        STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links 
+    FROM exot e
+    LEFT JOIN taxon t ON e.cd_tax=t.id_tax
+    LEFT JOIN taxon t_par ON t.cd_sup=t_par.id_tax
+    LEFT JOIN taxon t_synos ON t_synos.cd_syno=t.id_tax
+    LEFT JOIN ref_exot re ON e.cd_tax=re.cd_tax
+    LEFT JOIN refer r ON re.cd_ref=r.cd_ref 
+    GROUP BY t.name_auth, t_par.name_auth,t.tax_rank,t.gbifkey,e.is_alien, e.is_invasive, e.occ_observed,e.cryptogenic, e.comments
+);
