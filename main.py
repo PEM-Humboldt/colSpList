@@ -273,7 +273,7 @@ def manageInputTax(**inputTax):
         if(not inputTax.get('foundGbif') and (inputTax.get('synogbifkey') is not None or inputTax.get('synoscientificname') is not None or inputTax.get('synocanonicalname') is not None)):
             syno = True
             inputTax['syno'] = True
-            acceptedTax = {gbifkey: inputTax.get('synogbifkey'), scientificname: inputTax.get('synoscientificname'), canonicalname: inputTax.get('synocanonicalname')}
+            acceptedTax = {'gbifkey': inputTax.get('synogbifkey'), 'scientificname': inputTax.get('synoscientificname'), 'canonicalname': inputTax.get('synocanonicalname')}
         if(syno): 
             acceptedTax.update(test_taxInDb(connection=conn,**acceptedTax))
             if(not acceptedTax.get('alreadyInDb')):
