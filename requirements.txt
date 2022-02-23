@@ -2,8 +2,7 @@ flask_restful
 requests
 flask
 psycopg2-binary
-pandas
 flask
 gunicorn
-pydantic
-pydantic_webargs
+webargs
+fuzzywuzzy
