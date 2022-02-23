@@ -169,9 +169,11 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
         name_auth = inputTax.get('scientificname')
     else:
         if(hasSciName):
-            parsed = get_gbif_parsed_from_sci_name(inputTax.get('scientificname'))[0]
+            parsed = get_gbif_parsed_from_sci_name(inputTax.get('scientificname'))
+            if(not parsed.get('parsed')):
+                raise Exception("Name not found in GBIF and information insufficient to integrate in the database")
         else:
-            parsed = get_gbif_parsed_from_sci_name(inputTax.get('canonicalname'))[0]
+            parsed = get_gbif_parsed_from_sci_name(inputTax.get('canonicalname'))
         name=parsed.get('canonicalNameComplete')
         name_auth = parsed.get('scientificName')
         if(not hasRank):
@@ -258,9 +260,10 @@ def manageInputTax(**inputTax):
         inputTax.update(get_infoTax(**inputTax))
         inputTax['syno'] = False
         # In case we did not find the taxon at first be it is indeed in the database
-        recheck = test_taxInDb(connection=conn,gbifkey=inputTax.get('key'))
-        inputTax['alreadyInDb']=recheck.get('alreadyInDb')
-        inputTax['idTax'] = recheck.get('idTax')
+        if(inputTax.get('foundGbif')):
+            recheck = test_taxInDb(connection=conn,gbifkey=inputTax.get('key'))
+            inputTax['alreadyInDb']=recheck.get('alreadyInDb')
+            inputTax['idTax'] = recheck.get('idTax')
     if (not inputTax.get('alreadyInDb')):
         # synonyms
         if(inputTax.get('foundGbif') and inputTax.get('synonym')): # synonym found through gbif, note: all synonym info from the arguments (positive, negative, precise or not) in the function will not be considered... GBIF being our backbone here!
@@ -297,7 +300,7 @@ def manageInputTax(**inputTax):
                 if(inputTax.get('foundGbif')):
                     accepted, parentTax = format_gbif_tax(connection=conn, **inputTax)
                 else:
-                    accepted, parentTax = format_input_tax(connection=conn, acceptedName = None, acceptedId=None,**inputTax)
+                    accepted, parentTax = format_inputTax(connection=conn, acceptedName = None, acceptedId=None,**inputTax)
         
         parentTax.update(test_taxInDb(conn,**parentTax))
         if(not parentTax.get('alreadyInDb')):
