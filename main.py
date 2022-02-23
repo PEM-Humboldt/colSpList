@@ -50,7 +50,7 @@ def get_gbif_parsed_from_id(gbifkey: int):
 def get_gbif_parsed_from_sci_name(sci_name: str):
     api= f"https://api.gbif.org/v1/parser/name?name={sci_name}"
     response = requests.get(api)
-    content = response.json()
+    content = response.json()[0]
     return content
 
 
@@ -441,7 +441,7 @@ def manageInputEndem(id_tax,connection,**inputEndem):
     return {'id_tax': id_tax,'cdRefs': cdRefs}
 
 def getExotStatus(cursor, id_tax):
-    SQL = "SELECT e.is_alien, e.is_invasive, e.occ_observed, e.cryptogenic, e.comments, STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references, STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links FROM exot e LEFT JOIN ref_endem re ON e.cd_tax=re.cd_tax   LEFT JOIN refer r ON re.cd_ref=r.cd_ref WHERE e.cd_tax=%s GROUP BY e.is_alien, e.is_invasive, e.occ_observed,e.cryptogenic, e.comments"
+    SQL = "SELECT e.is_alien, e.is_invasive, e.occ_observed, e.cryptogenic, e.comments, STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references, STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links FROM exot e LEFT JOIN ref_exot re ON e.cd_tax=re.cd_tax   LEFT JOIN refer r ON re.cd_ref=r.cd_ref WHERE e.cd_tax=%s GROUP BY e.is_alien, e.is_invasive, e.occ_observed,e.cryptogenic, e.comments"
     cursor.execute(SQL,[id_tax])
     res = dict(cursor.fetchone())
     return res
