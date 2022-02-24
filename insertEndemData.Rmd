@@ -1,0 +1,198 @@
+---
+title: "Inserting endemic species with the colSpList API"
+output: 
+  github_document:
+    number_section: true
+---
+
+In order to show how to work with the colSpList API and the threatened species, we will use the species list from Ceiba, concerning the endemic bird species of Colombia (publicly available at <http://i2d.humboldt.org.co/ceiba/resource.do?r=biota_v14_n2_09>)
+
+
+# Preformatting the dataset
+
+The dataset downloaded from Ceiba includes various files, that we need to preformat (here in R), in order to extract the information that we may send to the API and its database:
+
+```{r}
+directory = "../data/dwca-biota_v14_n2_09"
+(files = dir(directory))
+```
+
+In order to read all the text files in the directory:
+
+```{r}
+fileNames <- files[grepl("\\.txt$",files)]
+filesToRead <- paste(directory,fileNames,sep = "/")
+data <- lapply(filesToRead,read.csv,sep="\t")
+names(data) <- sub("\\.txt","",fileNames)
+```
+
+The first lines of each read file is :
+
+```{r}
+lapply(data,head,5)
+```
+## Taxonomic information
+
+The "taxon" file contains all the taxonomic information.
+
+```{r}
+colnames(data[["taxon"]])
+```
+
+The "scientificName" is actually the "canonicalName" here, and does not include the authorship for the species.
+
+```{r}
+data$taxon$scientificName[1:10]
+```
+
+The taxonomic status of the species is written in spanish:
+
+```{r}
+table(data[["taxon"]]['taxonomicStatus'])
+```
+
+In case taxon names are synonyms, the column "acceptedNameUsage" gives the accepted name of the taxon, in a weird form of a "canonicalName" (without markers) associated with authorship:
+
+```{r}
+table(data[["taxon"]]$acceptedNameUsage,data[["taxon"]]$taxonomicStatus)
+```
+
+Our most simple way here to get the rank of the taxon is to check which column contains information:
+
+```{r}
+taxRankColumns <- c("kingdom","phylum","class","order","family","genus","specificEpithet")
+ranksAssociated <- c("KG","PHY","CL","OR","FAM","GN","SP")
+ranks <- apply(data[["taxon"]][,taxRankColumns],1,function(x,r)r[max(which(!is.na(x) & x != ""))], r = ranksAssociated)
+table(ranks)
+```
+It appears that all the taxon have a specific epithet. We need now to check that all scientificName are indeed a genus and a specific epithet.
+
+```{r}
+regexGnSp <- "^[A-Z][a-z]+ [a-z]+$"
+all(grepl(regexGnSp,data[["taxon"]]$scientificName))
+```
+
+So, indeed all names in scientificName correspond to species.
+
+### Taxonomic preformatting
+
+```{r}
+syno <- data$taxon$acceptedNameUsage != "" | data$taxon$taxonomicStatus == "Sinónimo"
+pf_taxon <- data.frame(id = data$taxon$id,canonicalname = data$taxon$scientificName,rank="SP",synoscientificname = ifelse(data$taxon$acceptedNameUsage == "", NA, data$taxon$acceptedNameUsage), parentcanonicalname = data$taxon$genus, syno = syno)
+head(pf_taxon)
+```
+
+## Endemic status, references and comments
+
+In the "description" file, we can find both the endemism status of the species  and the references to cite, in different rows.
+
+```{r}
+by(data$description,data$description$type,head)
+```
+
+```{r}
+tabStatus <- data.frame(id = data$description$id[data$description$type == "Distribución"], endemstatus = data$description$description[data$description$type == "Distribución"])
+tabRef <- data.frame(id = data$description$id[data$description$type == "Literatura"], rawRef = data$description$description[data$description$type == "Literatura"])
+listRef <- strsplit(tabRef$rawRef,", ?")
+names(listRef) <- tabRef$id
+# There are numbers, that we will supress from the list
+listRef <- lapply(listRef,function(x)return(x[!grepl("^[0-9]*$",x)]))
+listRef <- listRef[sapply(listRef,length)>0]
+listRef[1:5]
+```
+
+We might use a more complex data schema in the future, but right now we do not have the specific structures for integrating the information which is contained in the "distribution" table.
+For now, what we will do is to concatenate the information in a "comments" field, which already exists in the database.
+
+```{r}
+head(data$distribution)
+commentLocality <- paste("locality:", data$distribution$locality)
+tabComments <- data.frame(id = data$distribution$id,
+                          comments = paste0(
+                            ifelse(data$distribution$locality != "",paste("locality:",data$distribution$locality,"| "),""),
+                            ifelse(data$distribution$occurrenceRemarks != "", paste("occurrenceRemarks:",data$distribution$occurrenceRemarks,"| "),"")
+                          ))
+```
+
+## Final preformatting
+The goal here is to associate the taxonomic information, the endemic status, the references, and the comments in lists that may be directly transformed to json in order to send them to the API post method.
+
+```{r}
+# First we prepare the global reference and link for the dataset, to add in each taxon
+baseRef <- list(
+  ref_citation = list("Chaparro-Herrera, S., Echeverry-Galvis, M.A., Córdoba-Córdoba, S., Sua-Becerra, A. (2013). Listado actualizado de las aves endémicas y casi-endémicas de Colombia. 308 registros. Versión 5.1. http://doi.org/10.15472/tozuue"),
+  link = list("http://i2d.humboldt.org.co/ceiba/resource.do?r=biota_v14_n2_09")
+  )
+masterList <- list()
+for(i in 1:nrow(pf_taxon))
+{
+  id <- pf_taxon[i,"id"]
+  masterList[[i]] <- as.list(pf_taxon[i,colnames(pf_taxon) != "id" & !is.na(pf_taxon[i,])])
+  masterList[[i]] <- append(masterList[[i]],list(endemstatus = tabStatus[tabStatus$id==id,"endemstatus"]))
+  masterList[[i]] <- append(masterList[[i]],baseRef)
+  # Then we add the potential references already preformatted for this taxon
+  if(id %in% names(listRef))
+  {
+    masterList[[i]]$ref_citation <- append(masterList[[i]]$ref_citation,listRef[[id]])
+    masterList[[i]]$link <- append(masterList[[i]]$link,as.list(rep(" ",length(listRef[[id]]))))
+  }
+  masterList[[i]]$comments<-tabComments$comments[tabComments$id == id]
+}
+```
+
+
+# Basic usage : example of one only species
+If we take the first example of the list that we formatted on the previous part of the document, we obtain:
+
+```{r}
+masterList[[1]]
+```
+As you can see, the list is already formatted with the specifications of the API:
+
+in order to send the status to the database, we use a json "dictionary" with the following elements:
+
+* the identification of the species, with either:
+  + *gbifkey* : integer corresponding to the taxonKey used in GBIF
+  + *scientificname* : string corresponding to the scientificName in the GBIF backbone
+  + *canonicalname* : string corresponding to the canonicalName in the GBIF backbone (formally, it is better to use the canonicalNameWithMarker) used by the name parser of the GBIF backbone)
+  + *rank*: taxonomic rank of the taxon
+  + *syno*: boolean describing whether the name is a synonym to an accepted taxon
+  + *parentgbifkey*, *parentcanonicalname* and *parentscientificname*: equivalent of the identification of the taxon, for the parent taxon
+  +  *synogbifkey*, *synocanonicalname* and *synoscientificname*: equivalent of the identification of the taxon, for the accepted taxon in case the name sent is a synonym
+* *endemstatus* : the endemism level
+* *ref_citation* : a list of the references on which are based the inclusion of the taxon and its endemism status in the API
+* *link* : a list of the url links (corresponding in length and order to the *ref_citation*)
+* *comments* : comment on the endemism status of the taxon
+  
+
+## In R
+
+
+```{r}
+require(httr)
+require(jsonify)
+sendJson <- to_json(masterList[[1]],unbox=T)
+baseURL <- 'http://localhost:5000'
+baseResource <- "insertEndem"
+POST('http://localhost:5000/insertEndem',body=sendJson, content_type("application/json"),verbose())
+```
+
+Now we do it for all the list:
+
+```{r}
+res = list()
+for(i in 1:length(masterList))
+{
+  res[[i]] <- POST(paste(baseURL,baseResource,sep="/"),body=to_json(masterList[[i]],unbox=T), content_type("application/json"))
+}
+```
+
+
+# Problems
+
+```{r}
+pbs <- !sapply(res,function(x)"id_tax"%in%names(content(x)))
+any(pbs)
+```
+No problem found!
+
