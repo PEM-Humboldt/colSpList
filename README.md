@@ -9,4 +9,4 @@ It will mostly be some example code in R and python.
 
 # Content
 
-The folder [UsingPost](./UsingPost) contains examples concerning the Post endpoints and the API. More specifically, you will find the scripts that I used to feed the database with dataset concerning [exotic](./UsingPost/insertExot.md), [threatened](./UsingPost/insertThreat.md), and [endemic](./UsingPost/insertEndem.md)
+The folder [UsingPost](./UsingPost) contains examples concerning the Post endpoints and the API. More specifically, you will find the scripts that I used to feed the database with dataset concerning [exotic](./UsingPost/insertExotData.md), [threatened](./UsingPost/insertThreatData.md), and [endemic](./UsingPost/insertEndemData.md)
