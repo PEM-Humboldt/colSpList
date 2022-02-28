@@ -59,7 +59,7 @@ In the examples here, we will simply exclude the 2 taxa which are referenced fro
 
 
 ```{r}
-file = "../data/dwca-resolucion1912-2017mads-v2.5/distribution.txt"
+file = "../../data/dwca-resolucion1912-2017mads-v2.5/distribution.txt"
 listSpThreat <- read.csv(file,sep="\t")
 regexExtractGbifkey <- "^gbif\\.org/species/([0-9]+)$"
 listSpThreat <- listSpThreat [grepl(regexExtractGbifkey,listSpThreat$id),]

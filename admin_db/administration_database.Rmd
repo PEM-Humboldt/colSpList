@@ -1,0 +1,80 @@
+---
+title: "Administration of the database from the API"
+output: 
+  github_document:
+    number_section: true
+---
+
+# Backup
+
+## Basic backup of the local database
+
+When the API is used locally, the backup of the local database (named sp_list) may be done by the following command in bash:
+
+```bash
+pg_dump -Fc --no-acl --no-owner sp_list > ../../db_dumps/sp_list_local`date +%Y_%m_%d_%H%M%S%N`
+```
+
+## Backup through Heroku
+
+Heroku proposes a service for generating backups, which are stored in Heroku servers 
+
+It's done through the command:
+
+```bash
+heroku pg:backups:capture --app colsplist
+```
+
+With the basic plan, heroku will retain 2 backups, which means that it will expire the oldest backup to create a new one`
+
+In order to create regular backups on heroku servers we may use as well:
+
+
+```bash
+heroku pg:backups:schedule DATABASE_URL --at "02:00 America/Bogota" --app colsplist
+```
+
+Now, in order to download the backup, we need first to know which backup we are interested in:
+
+```{bash}
+heroku pg:backups --app colsplist
+```
+
+Using the ID we are interested in, we can now query an url for the physical file on a server, and then download it as a file
+
+```{bash}
+URL_DB=`heroku pg:backups:url a005 --app colsplist`
+echo $URL_DB
+wget -O "../../db_dumps/sp_list_heroku`date +%Y_%m_%d_%H%M%S%N`.dump" $URL_DB
+```
+
+
+
+## Using Cron to manage frequent backup
+
+The most probable scenario is that we will store the database in another service than heroku, in a server which will work under an Unix-based system.
+
+In order to schedule backup in this system, we might want to use the Cron system.
+
+
+In that case, the scheduling system will use a bash file, called db_backup_sp_list.sh, and placed in the home folder:
+
+
+
+```
+#! /bin/bash
+DATABASE_URL='//localhost/sp_list'
+directory_backup='~/db_backups'
+pg_dump -h $DATABASE_URL -d sp_list -Fc --no-acl --no-owner > "$directory_backup/sp_list`date+%Y_%m_%d_%H%M%S%N`"
+```
+
+In the cron file, we add the line:
+
+```
+0   0   1   *   *   bash -x db_backup_sp_list.sh
+```
+
+This results in a monthly backup realized on the first of each month at 00:00
+
+
+

@@ -13,7 +13,7 @@ In order to show how to work with the colSpList API and the threatened species, 
 The dataset downloaded from Ceiba includes various files, that we need to preformat (here in R), in order to extract the information that we may send to the API and its database:
 
 ```{r}
-directory = "../data/dwca-biota_v14_n2_09"
+directory = "../../data/dwca-biota_v14_n2_09"
 (files = dir(directory))
 ```
 

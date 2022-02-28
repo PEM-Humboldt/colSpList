@@ -13,7 +13,7 @@ to preformat (here in R), in order to extract the information that we
 may send to the API and its database:
 
 ``` r
-directory = "../data/dwca-biota_v14_n2_09"
+directory = "../../data/dwca-biota_v14_n2_09"
 (files = dir(directory))
 ```
 
@@ -506,7 +506,7 @@ POST('http://localhost:5000/insertEndem',body=sendJson, content_type("applicatio
 ```
 
     ## Response [http://localhost:5000/insertEndem]
-    ##   Date: 2022-02-24 05:03
+    ##   Date: 2022-02-24 16:35
     ##   Status: 200
     ##   Content-Type: application/json
     ##   Size: 44 B
@@ -536,6 +536,6 @@ pbs <- !sapply(res,function(x)"id_tax"%in%names(content(x)))
 any(pbs)
 ```
 
-    ## [1] FALSE
+    ## [1] TRUE
 
 No problem found!

@@ -20,230 +20,16 @@ baseResource <- "insertExot"
 ```
 
 
-
-# GRIIS
-
-In order to show how to work with the colSpList API and the threatened species, we will use the species list from the GRIIS, concerning the endemic bird species of Colombia (publicly available as a gbif dataset at <https://www.gbif.org/dataset/168568e7-eb5f-4ef6-8c59-f73ceaf57e91>)
-
-
-## Preformatting the dataset
-
-The dataset downloaded from GBIF includes various files, that we need to preformat (here in R), in order to extract the information that we may send to the API and its database:
-
-```{r}
-directory = "../data/dwca-griis-colombia-v1.5/"
-(files = dir(directory))
-```
-
-In order to read all the text files in the directory:
-
-```{r}
-fileNames <- files[grepl("\\.txt$",files)]
-filesToRead <- paste(directory,fileNames,sep = "/")
-data <- lapply(filesToRead,read.csv,sep="\t")
-names(data) <- sub("\\.txt","",fileNames)
-```
-
-The first lines of each read file is :
-
-```{r}
-lapply(data,head,5)
-```
-#### Taxonomic information
-
-The "taxon" file contains all the taxonomic information.
-
-```{r}
-colnames(data[["taxon"]])
-```
-
-The "scientificName" is well formatted, with the taxon names and the authorship.
-
-```{r}
-data$taxon$scientificName[1:10]
-```
-
-The taxonomic status of the species is written as specified in the classical DarwinCore format of GBIF:
-
-```{r}
-table(data[["taxon"]]['taxonomicStatus'])
-```
-
-In case taxon names are synonyms, the column "acceptedNameUsage" gives the accepted name of the taxon, in the form of a classical "scientificName", but we may see here that, sometimes the taxonomicStatus does not mention "SYNONYM" even though there is an "acceptedNameUsage".
-
-```{r}
-table(data[["taxon"]]$acceptedNameUsage,data[["taxon"]]$taxonomicStatus)
-```
-
-Our most simple way here to get the rank of the taxon is the column "taxonRank", even though 3 taxa do not have anything in this column.
-
-```{r}
-ranks <- data$taxon$taxonRank
-table(ranks)
-ranks[ranks == ""] <- NA
-```
-
-In order to find the parents, we need to associate the taxonomic columns and the ranks of the taxa.
-
-```{r}
-parentCano <- rep(NA,nrow(data$taxon))
-parentCano[data$taxon$taxonRank == "SPECIES"] <- gsub("^([A-Z][a-z]+) .+$","\\1",data$taxon$scientificName[data$taxon$taxonRank == "SPECIES"])
-parentCano[data$taxon$taxonRank %in% c("SUBSPECIES","VARIETY")] <- gsub("^([A-Z][a-z]+ [a-z]+) .+$","\\1",data$taxon$scientificName[data$taxon$taxonRank %in% c("SUBSPECIES","VARIETY")])
-```
-
-
-###### Taxonomic preformatting
-
-```{r}
-syno <- data$taxon$acceptedNameUsage != "" | data$taxon$taxonomicStatus == "SYNONYM"
-pf_taxon <- data.frame(id = data$taxon$id,scientificname = data$taxon$scientificName,rank=ranks,synoscientificname = ifelse(data$taxon$acceptedNameUsage == "", NA, data$taxon$acceptedNameUsage), parentcanonicalname = parentCano, syno = syno)
-head(pf_taxon)
-```
-
-#### Exotic status, Invasive status, occurrence status, references and comments
-
-I am not completely sure of the way to treat the status of the taxa, depending on their establishmentMeans.
-
-
-```{r}
-table(data$distribution$occurrenceStatus,data$distribution$establishmentMeans)
-```
-
-For now we will consider that all the taxa here are alien, all are observed (all are noted as "Present" for Colombia), and some of them are cryptogenic.
-
-
-In the table "speciesprofile", we find the following information about the invasive status:
-
-```{r}
-table(data$speciesprofile$isInvasive)
-```
-
-As you can see the species are either invasive or null, so we will consider that the species are invasive, or not (False), when the status is null (we might have to go back on this decision later...)
-
-
-In this dataset there are no information that we should include in the comment, or extra references to include for the taxa.
-
-```{r}
-tabStatus = data.frame(id=pf_taxon$id,is_alien=T, occ_observed=T)
-m <- match(data$distribution$id,tabStatus$id)
-tabStatus$cryptogenic[m] <- grepl("Cryptogenic",data$distribution$establishmentMeans)
-m <- match(data$speciesprofile$id,tabStatus$id)
-tabStatus$is_invasive[m] <- grepl("Invasive",data$speciesprofile$isInvasive)
-head(tabStatus)
-```
-
-
-#### Final preformatting
-The goal here is to associate the taxonomic information, the exotic statuses, the references, and the comments in lists that may be directly transformed to json in order to send them to the API post method.
-
-```{r}
-## First we prepare the global reference and link for the dataset, to add in each taxon
-baseRef <- list(
-  ref_citation = list("Piedad Baptiste E M, Marcela García L. L, Acevedo-Charry O, Acosta A, Alarcón J, Arévalo E, Carolina Avella G, Blanco A, E. Botero J, Rancés Caicedo-Portilla J, Camelo Martínez C, Camelo-Calvo M P, Certuche-Cubillos K, Chasqui L, Cifuentes Y, Julián Contreras P, Córdoba S, Correa J, Fernanda Díaz M, DoNascimiento C, Alexandra Duque R, Victoria Flechas S, Dimitri Forero I, José Gómez Hoyos A, González Durán G, Guayara S, Carlos Guetiva J, Jiménez G, Larrahondo M, Maldonado Ocampo J, Medina-Rangel G F, Merino M C, Mesa L M, Millán M V, Mojica H, César Neita Moreno J, del Pilar Parrado M, Camilo Pérez S, Ramírez W, Rojas V, Rojas Z, Urbina-Cardona N, Paola Velásquez L, Wong L J, Pagad S (2020). Global Register of Introduced and Invasive Species - Colombia. Version 1.5. Invasive Species Specialist Group ISSG."),
-  link = list("https://www.gbif.org/dataset/168568e7-eb5f-4ef6-8c59-f73ceaf57e91")
-  )
-masterList <- list()
-for(i in 1:nrow(pf_taxon))
-{
-  id <- pf_taxon[i,"id"]
-  masterList[[i]] <- as.list(pf_taxon[i,colnames(pf_taxon) != "id" & !is.na(pf_taxon[i,])])
-  masterList[[i]] <- append(masterList[[i]],as.list(tabStatus[tabStatus$id==id,colnames(tabStatus)!="id"]))
-  masterList[[i]] <- append(masterList[[i]],baseRef)
-  ## Then we add the potential references already preformatted for this taxon
-}
-```
-
-
-## Basic usage : example of one only species
-If we take the first example of the list that we formatted on the previous part of the document, we obtain:
-
-```{r}
-masterList[[1]]
-```
-As you can see, the list is already formatted with the specifications of the API:
-
-in order to send the status to the database, we use a json "dictionary" with the following elements:
-
-* the identification of the species, with either:
-  + *gbifkey* : integer corresponding to the taxonKey used in GBIF
-  + *scientificname* : string corresponding to the scientificName in the GBIF backbone
-  + *canonicalname* : string corresponding to the canonicalName in the GBIF backbone (formally, it is better to use the canonicalNameWithMarker) used by the name parser of the GBIF backbone)
-  + *rank*: taxonomic rank of the taxon
-  + *syno*: boolean describing whether the name is a synonym to an accepted taxon
-  + *parentgbifkey*, *parentcanonicalname* and *parentscientificname*: equivalent of the identification of the taxon, for the parent taxon
-  +  *synogbifkey*, *synocanonicalname* and *synoscientificname*: equivalent of the identification of the taxon, for the accepted taxon in case the name sent is a synonym
-* *is_alien* : whether the species considered as introduced in Colombia
-* *is_invasive* : whether the species considered as potentially harmful (in terms of biological invasion) in Colombia
-* *occ_observed*: observed occurrence in Colombia
-* *cryptogenic* whether the species is cryptogenic (or very rare)
-* *ref_citation* : a list of the references on which are based the inclusion of the taxon and its endemism status in the API
-* *link* : a list of the url links (corresponding in length and order to the *ref_citation*)
-* *comments* : comment on the endemism status of the taxon
-  
-
-#### In R
-
-
-```{r}
-require(httr)
-require(jsonify)
-sendJson <- to_json(masterList[[1]],unbox=T)
-POST('http://colsplist.herokuapp.com/insertExot',body=sendJson, content_type("application/json"),verbose())
-```
-
-Now we do it for all the list:
-
-```{r}
-res = list()
-for(i in 1:length(masterList))
-{
-  res[[i]] <- POST(paste(baseURL,baseResource,sep="/"),body=to_json(masterList[[i]],unbox=T), content_type("application/json"))
-}
-```
-
-
-
-##### Problems
-```{r}
-pbs <- !sapply(res,function(x)"id_tax"%in%names(content(x)))
-```
-
-Note: Canis lupus is twice in the list, with 2 different statuses:
-```{r}
-data$taxon[grep("Canis",data$taxon$scientificName),]
-data$speciesprofile[data$speciesprofile$id%in%c(31191,31192),]
-```
-
-Note: Helix aspersa is a synonym to Cornu aspersum, but one is considered invasive and the other no...
-```{r}
-data$taxon[grepl("Helix",data$taxon$scientificName)|grepl("Cornu",data$taxon$scientificName),]
-data$speciesprofile[data$speciesprofile$id%in%c(31336,31241),]
-```
-Note: same for Pennisetum clandestinum, synonym of Cenchrus clandestinum
-```{r}
-data$taxon[grepl("Pennisetum c",data$taxon$scientificName)|grepl("Cenchrus cl",data$taxon$scientificName),]
-data$speciesprofile[data$speciesprofile$id%in%c(31210,31469),]
-```
-
-
-The viruses are not taken well into account, we should see whether there are solutions... There are not included for now...
-
-```{r}
-griis_tax <- pf_taxon
-```
-
-
-
 # Flora exotica
 
-A second dataset concerns exotic species in Colombia and is focused in flora, it is the reference: Instituto de Investigación de Recursos Biológicos Alexander von Humboldt (2020). Base de datos de información ecológica e invasividad de especies exóticas prioritarias de flora y fauna de Colombia. 43 registros. (publicly available at <http://i2d.humboldt.org.co/ceiba/resource.do?r=lista_colombia_exoticas_2020>)
+One of the datasets concerns exotic species in Colombia and is focused in flora, it is the reference: Instituto de Investigación de Recursos Biológicos Alexander von Humboldt (2020). Base de datos de información ecológica e invasividad de especies exóticas prioritarias de flora y fauna de Colombia. 43 registros. (publicly available at <http://i2d.humboldt.org.co/ceiba/resource.do?r=lista_colombia_exoticas_2020>)
 
 ## Preformatting the dataset
 
 The dataset downloaded from GBIF includes various files, that we need to preformat (here in R), in order to extract the information that we may send to the API and its database:
 
 ```{r}
-directory = "../data/dwca-lista_colombia_exoticas_2020/"
+directory = "../../data/dwca-lista_colombia_exoticas_2020/"
 (files = dir(directory))
 ```
 
@@ -416,6 +202,188 @@ Now we insert all the list:
 
 
 ```{r}
+require(httr)
+require(jsonify)
+res = list()
+for(i in 1:length(masterList))
+{
+  res[[i]] <- POST(paste(baseURL,baseResource,sep="/"),body=to_json(masterList[[i]],unbox=T), content_type("application/json"))
+}
+```
+
+
+
+# GRIIS
+
+The most important dataset for exotic species is  the species list from the GRIIS (publicly available as a gbif dataset at <https://www.gbif.org/dataset/168568e7-eb5f-4ef6-8c59-f73ceaf57e91>)
+
+
+## Preformatting the dataset
+
+The dataset downloaded from GBIF includes various files, that we need to preformat (here in R), in order to extract the information that we may send to the API and its database:
+
+```{r}
+directory = "../../data/dwca-griis-colombia-v1.5/"
+(files = dir(directory))
+```
+
+In order to read all the text files in the directory:
+
+```{r}
+fileNames <- files[grepl("\\.txt$",files)]
+filesToRead <- paste(directory,fileNames,sep = "/")
+data <- lapply(filesToRead,read.csv,sep="\t")
+names(data) <- sub("\\.txt","",fileNames)
+```
+
+The first lines of each read file is :
+
+```{r}
+lapply(data,head,5)
+```
+#### Taxonomic information
+
+The "taxon" file contains all the taxonomic information.
+
+```{r}
+colnames(data[["taxon"]])
+```
+
+The "scientificName" is well formatted, with the taxon names and the authorship.
+
+```{r}
+data$taxon$scientificName[1:10]
+```
+
+The taxonomic status of the species is written as specified in the classical DarwinCore format of GBIF:
+
+```{r}
+table(data[["taxon"]]['taxonomicStatus'])
+```
+
+In case taxon names are synonyms, the column "acceptedNameUsage" gives the accepted name of the taxon, in the form of a classical "scientificName", but we may see here that, sometimes the taxonomicStatus does not mention "SYNONYM" even though there is an "acceptedNameUsage".
+
+```{r}
+table(data[["taxon"]]$acceptedNameUsage,data[["taxon"]]$taxonomicStatus)
+```
+
+Our most simple way here to get the rank of the taxon is the column "taxonRank", even though 3 taxa do not have anything in this column.
+
+```{r}
+ranks <- data$taxon$taxonRank
+table(ranks)
+ranks[ranks == ""] <- NA
+```
+
+In order to find the parents, we need to associate the taxonomic columns and the ranks of the taxa.
+
+```{r}
+parentCano <- rep(NA,nrow(data$taxon))
+parentCano[data$taxon$taxonRank == "SPECIES"] <- gsub("^([A-Z][a-z]+) .+$","\\1",data$taxon$scientificName[data$taxon$taxonRank == "SPECIES"])
+parentCano[data$taxon$taxonRank %in% c("SUBSPECIES","VARIETY")] <- gsub("^([A-Z][a-z]+ [a-z]+) .+$","\\1",data$taxon$scientificName[data$taxon$taxonRank %in% c("SUBSPECIES","VARIETY")])
+```
+
+
+###### Taxonomic preformatting
+
+```{r}
+syno <- data$taxon$acceptedNameUsage != "" | data$taxon$taxonomicStatus == "SYNONYM"
+pf_taxon <- data.frame(id = data$taxon$id,scientificname = data$taxon$scientificName,rank=ranks,synoscientificname = ifelse(data$taxon$acceptedNameUsage == "", NA, data$taxon$acceptedNameUsage), parentcanonicalname = parentCano, syno = syno)
+head(pf_taxon)
+```
+
+#### Exotic status, Invasive status, occurrence status, references and comments
+
+I am not completely sure of the way to treat the status of the taxa, depending on their establishmentMeans.
+
+
+```{r}
+table(data$distribution$occurrenceStatus,data$distribution$establishmentMeans)
+```
+
+For now we will consider that all the taxa here are alien, all are observed (all are noted as "Present" for Colombia), and some of them are cryptogenic.
+
+
+In the table "speciesprofile", we find the following information about the invasive status:
+
+```{r}
+table(data$speciesprofile$isInvasive)
+```
+
+As you can see the species are either invasive or null, so we will consider that the species are invasive, or not (False), when the status is null (we might have to go back on this decision later...)
+
+
+In this dataset there are no information that we should include in the comment, or extra references to include for the taxa.
+
+```{r}
+tabStatus = data.frame(id=pf_taxon$id,is_alien=T, occ_observed=T)
+m <- match(data$distribution$id,tabStatus$id)
+tabStatus$cryptogenic[m] <- grepl("Cryptogenic",data$distribution$establishmentMeans)
+m <- match(data$speciesprofile$id,tabStatus$id)
+tabStatus$is_invasive[m] <- grepl("Invasive",data$speciesprofile$isInvasive)
+head(tabStatus)
+```
+
+
+#### Final preformatting
+The goal here is to associate the taxonomic information, the exotic statuses, the references, and the comments in lists that may be directly transformed to json in order to send them to the API post method.
+
+```{r}
+## First we prepare the global reference and link for the dataset, to add in each taxon
+baseRef <- list(
+  ref_citation = list("Piedad Baptiste E M, Marcela García L. L, Acevedo-Charry O, Acosta A, Alarcón J, Arévalo E, Carolina Avella G, Blanco A, E. Botero J, Rancés Caicedo-Portilla J, Camelo Martínez C, Camelo-Calvo M P, Certuche-Cubillos K, Chasqui L, Cifuentes Y, Julián Contreras P, Córdoba S, Correa J, Fernanda Díaz M, DoNascimiento C, Alexandra Duque R, Victoria Flechas S, Dimitri Forero I, José Gómez Hoyos A, González Durán G, Guayara S, Carlos Guetiva J, Jiménez G, Larrahondo M, Maldonado Ocampo J, Medina-Rangel G F, Merino M C, Mesa L M, Millán M V, Mojica H, César Neita Moreno J, del Pilar Parrado M, Camilo Pérez S, Ramírez W, Rojas V, Rojas Z, Urbina-Cardona N, Paola Velásquez L, Wong L J, Pagad S (2020). Global Register of Introduced and Invasive Species - Colombia. Version 1.5. Invasive Species Specialist Group ISSG."),
+  link = list("https://www.gbif.org/dataset/168568e7-eb5f-4ef6-8c59-f73ceaf57e91")
+  )
+masterList <- list()
+for(i in 1:nrow(pf_taxon))
+{
+  id <- pf_taxon[i,"id"]
+  masterList[[i]] <- as.list(pf_taxon[i,colnames(pf_taxon) != "id" & !is.na(pf_taxon[i,])])
+  masterList[[i]] <- append(masterList[[i]],as.list(tabStatus[tabStatus$id==id,colnames(tabStatus)!="id"]))
+  masterList[[i]] <- append(masterList[[i]],baseRef)
+  ## Then we add the potential references already preformatted for this taxon
+}
+```
+
+
+## Basic usage : example of one only species
+If we take the first example of the list that we formatted on the previous part of the document, we obtain:
+
+```{r}
+masterList[[1]]
+```
+As you can see, the list is already formatted with the specifications of the API:
+
+in order to send the status to the database, we use a json "dictionary" with the following elements:
+
+* the identification of the species, with either:
+  + *gbifkey* : integer corresponding to the taxonKey used in GBIF
+  + *scientificname* : string corresponding to the scientificName in the GBIF backbone
+  + *canonicalname* : string corresponding to the canonicalName in the GBIF backbone (formally, it is better to use the canonicalNameWithMarker) used by the name parser of the GBIF backbone)
+  + *rank*: taxonomic rank of the taxon
+  + *syno*: boolean describing whether the name is a synonym to an accepted taxon
+  + *parentgbifkey*, *parentcanonicalname* and *parentscientificname*: equivalent of the identification of the taxon, for the parent taxon
+  +  *synogbifkey*, *synocanonicalname* and *synoscientificname*: equivalent of the identification of the taxon, for the accepted taxon in case the name sent is a synonym
+* *is_alien* : whether the species considered as introduced in Colombia
+* *is_invasive* : whether the species considered as potentially harmful (in terms of biological invasion) in Colombia
+* *occ_observed*: observed occurrence in Colombia
+* *cryptogenic* whether the species is cryptogenic (or very rare)
+* *ref_citation* : a list of the references on which are based the inclusion of the taxon and its endemism status in the API
+* *link* : a list of the url links (corresponding in length and order to the *ref_citation*)
+* *comments* : comment on the endemism status of the taxon
+  
+
+#### In R
+
+
+```{r}
+sendJson <- to_json(masterList[[1]],unbox=T)
+POST('http://localhost:5000/insertExot',body=sendJson, content_type("application/json"),verbose())
+```
+
+Now we do it for all the list:
+
+```{r}
 res = list()
 for(i in 1:length(masterList))
 {
@@ -426,11 +394,33 @@ for(i in 1:length(masterList))
 
 
 ##### Problems
-The most important problem we face here is that most taxa were already present in the previous list, so we need to resolve the conflicts before going further.
+```{r}
+pbs <- !sapply(res,function(x)"id_tax"%in%names(content(x)))
+```
+
+Note: Canis lupus is twice in the list, with 2 different statuses:
+```{r}
+data$taxon[grep("Canis",data$taxon$scientificName),]
+data$speciesprofile[data$speciesprofile$id%in%c(31191,31192),]
+```
+
+Note: Helix aspersa is a synonym to Cornu aspersum, but one is considered invasive and the other no...
+```{r}
+data$taxon[grepl("Helix",data$taxon$scientificName)|grepl("Cornu",data$taxon$scientificName),]
+data$speciesprofile[data$speciesprofile$id%in%c(31336,31241),]
+```
+Note: same for Pennisetum clandestinum, synonym of Cenchrus clandestinum
+```{r}
+data$taxon[grepl("Pennisetum c",data$taxon$scientificName)|grepl("Cenchrus cl",data$taxon$scientificName),]
+data$speciesprofile[data$speciesprofile$id%in%c(31210,31469),]
+```
 
 
+The viruses are not taken well into account, we should see whether there are solutions... There are not included for now...
 
 ```{r}
-pf_taxon$scientificname %in% griis_tax$scientificname
+griis_tax <- pf_taxon
 ```
+
+
 

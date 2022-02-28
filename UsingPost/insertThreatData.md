@@ -52,11 +52,11 @@ POST(paste(baseURL,baseResource,sep="/"),body=sendJson, content_type("applicatio
 ```
 
     ## Response [http://localhost:5000/insertThreat]
-    ##   Date: 2022-02-24 05:08
+    ##   Date: 2022-02-24 17:32
     ##   Status: 200
     ##   Content-Type: application/json
-    ##   Size: 33 B
-    ## {"id_tax": 584, "cdRefs": [113]}
+    ##   Size: 34 B
+    ## {"id_tax": 1862, "cdRefs": [216]}
 
 ## 1.2 In python
 
@@ -70,7 +70,7 @@ x = requests.post(url, json = dictTosend)
 x.json()
 ```
 
-    ## {'id_tax': 584, 'cdRefs': [113]}
+    ## {'id_tax': 1862, 'cdRefs': [216]}
 
 # 2 A list of species and their status
 
@@ -88,7 +88,7 @@ referenced from EOL
 ## 2.1 In R
 
 ``` r
-file = "../data/dwca-resolucion1912-2017mads-v2.5/distribution.txt"
+file = "../../data/dwca-resolucion1912-2017mads-v2.5/distribution.txt"
 listSpThreat <- read.csv(file,sep="\t")
 regexExtractGbifkey <- "^gbif\\.org/species/([0-9]+)$"
 listSpThreat <- listSpThreat [grepl(regexExtractGbifkey,listSpThreat$id),]
