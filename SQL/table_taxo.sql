@@ -78,18 +78,20 @@ VALUES
     ('GRIIS','','');
 */
 
-CREATE TABLE pres_status
+CREATE TABLE def_habito
 (
-    id_pres varchar(15) PRIMARY KEY,
-    descr_pres text
+    cd_hab varchar(50) PRIMARY KEY,
+    descr_hab text
 );
 
 CREATE TABLE habito
 (
-    id_habito varchar(15) PRIMARY KEY,
-    descr_type text
+    id serial PRIMARY KEY,
+    cd_tax integer REFERENCES taxon(id_tax) NOT NULL,
+    cd_hab varchar(50) REFERENCES def_habito(cd_hab) NOT NULL
 );
 
+/* These tables might be useful later if we want to categorize more precisely the species
 CREATE TABLE type_intro
 (
     id_type varchar(15) PRIMARY KEY,
@@ -108,14 +110,14 @@ CREATE TABLE habito
     habito varchar(25) NOT NULL
 )
 ;
-
+*/
 CREATE TABLE exot
 (
     cd_tax integer PRIMARY KEY REFERENCES taxon(id_tax),
     is_alien boolean,
     is_invasive boolean,
-    occ_observed boolean,
-    cryptogenic boolean,
+    -- occ_observed boolean,
+    -- cryptogenic boolean,
     comments text
 );
 
@@ -159,9 +161,9 @@ CREATE TABLE nivel_endem
 
 INSERT INTO nivel_endem
 VALUES
-(0, 'Unsuficient information', 'Información insuficient'), 
+(0, 'Unsuficient information', 'Información insuficiente'), 
 (1, 'Species of interest', 'Especie de interés'),
-(2, 'Almost endemic by area', 'Casi endémica por area'),
+(2, 'Almost endemic by area', 'Casi endémicas por área'),
 (3, 'Almost endemic', 'Casi endémica'),
 (4, 'Endemic', 'Endémica');
 
@@ -211,8 +213,8 @@ CREATE VIEW exotList AS(
         STRING_AGG (t_synos.name_auth, ' | ') synonyms,
         e.is_alien,
         e.is_invasive,
-        e.occ_observed,
-        e.cryptogenic,
+        --e.occ_observed,
+        --e.cryptogenic,
         e.comments,
         STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references,
         STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links 
@@ -222,5 +224,5 @@ CREATE VIEW exotList AS(
     LEFT JOIN taxon t_synos ON t_synos.cd_syno=t.id_tax
     LEFT JOIN ref_exot re ON e.cd_tax=re.cd_tax
     LEFT JOIN refer r ON re.cd_ref=r.cd_ref 
-    GROUP BY t.name_auth, t_par.name_auth,t.tax_rank,t.gbifkey,e.is_alien, e.is_invasive, e.occ_observed,e.cryptogenic, e.comments
+    GROUP BY t.name_auth, t_par.name_auth,t.tax_rank,t.gbifkey,e.is_alien, e.is_invasive, /*e.occ_observed,e.cryptogenic,*/ e.comments
 );

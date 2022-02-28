@@ -269,7 +269,9 @@ def manageInputTax(**inputTax):
         if(inputTax.get('foundGbif') and inputTax.get('synonym')): # synonym found through gbif, note: all synonym info from the arguments (positive, negative, precise or not) in the function will not be considered... GBIF being our backbone here!
             syno = True
             inputTax['syno'] = True
-            acceptedTax = {'gbifkey':inputTax.get('acceptedUsageKey')}
+            acceptedTax = {'gbifkey':inputTax.get('acceptedUsageKey'),'scientificname': inputTax.get('accepted')}
+            if acceptedTax.get('gbifkey') is None:
+                acceptedTax['gbifkey']=inputTax.get('acceptedKey')
         if(not inputTax.get('foundGbif') and (inputTax.get('synogbifkey') is not None or inputTax.get('synoscientificname') is not None or inputTax.get('synocanonicalname') is not None)):
             syno = True
             inputTax['syno'] = True
@@ -446,7 +448,7 @@ def manageInputEndem(id_tax,connection,**inputEndem):
     return {'id_tax': id_tax,'cdRefs': cdRefs}
 
 def getExotStatus(cursor, id_tax):
-    SQL = "SELECT e.is_alien, e.is_invasive, e.occ_observed, e.cryptogenic, e.comments, STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references, STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links FROM exot e LEFT JOIN ref_exot re ON e.cd_tax=re.cd_tax   LEFT JOIN refer r ON re.cd_ref=r.cd_ref WHERE e.cd_tax=%s GROUP BY e.is_alien, e.is_invasive, e.occ_observed,e.cryptogenic, e.comments"
+    SQL = "SELECT e.is_alien, e.is_invasive,  e.comments, STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references, STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links FROM exot e LEFT JOIN ref_exot re ON e.cd_tax=re.cd_tax   LEFT JOIN refer r ON re.cd_ref=r.cd_ref WHERE e.cd_tax=%s GROUP BY e.is_alien, e.is_invasive, e.comments"
     cursor.execute(SQL,[id_tax])
     res = dict(cursor.fetchone())
     return res
@@ -461,7 +463,7 @@ def manageInputExot(id_tax,connection,**inputExot):
     if statusExists:
         # if it exists, look whether it is compatible with the current status
         exotStatus = getExotStatus(cur,id_tax)
-        sameStatus = (inputExot.get('is_alien') == exotStatus['is_alien']) and (inputExot.get('is_invasive') == exotStatus['is_invasive']) and (inputExot.get('occ_observed') == exotStatus['occ_observed']) and (inputExot.get('cryptogenic') == exotStatus['cryptogenic']) 
+        sameStatus = (inputExot.get('is_alien') == exotStatus['is_alien']) and (inputExot.get('is_invasive') == exotStatus['is_invasive'])   
         if(not sameStatus):
             raise Exception("The taxon already exists in the database with another alien/invasive status")
     cur.close()
@@ -470,8 +472,8 @@ def manageInputExot(id_tax,connection,**inputExot):
             cdRefs = [manageSource(cur,inputExot['ref_citation'][i],inputExot.get('link')[i] if bool(inputExot.get('link')) else None) for i in range(0,len(inputExot['ref_citation']))]
             if not statusExists:
                 # if it is compatible with an existing status, insert the new source
-                SQL = "INSERT INTO exot(cd_tax,is_alien,is_invasive,occ_observed,cryptogenic,comments) VALUES (%s,%s,%s,%s,%s,%s)"
-                cur.execute(SQL, [id_tax,inputExot.get('is_alien'),inputExot.get('is_invasive'),inputExot.get('occ_observed'),inputExot.get('cryptogenic'),inputExot.get('comments')])
+                SQL = "INSERT INTO exot(cd_tax,is_alien,is_invasive,comments) VALUES (%s,%s,%s,%s)"
+                cur.execute(SQL, [id_tax,inputExot.get('is_alien'),inputExot.get('is_invasive'),inputExot.get('comments')])
             # if it does not exist insert the source, the status and make the links
             for i in range(len(cdRefs)):
                 SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_exot AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_exot(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
@@ -499,7 +501,7 @@ def testExotStatus(connection,id_tax):
     if hasExotStatus:
         res.update(getExotStatus(cur,id_tax))
     else:
-        res.update({'cd_nivel':None, 'is_alien': None, 'is_invasive': None, 'occ_observed': None, 'cryptogenic': None ,'comments': None,'references': None, 'links': None})
+        res.update({'cd_nivel':None, 'is_alien': None, 'is_invasive': None,'comments': None,'references': None, 'links': None})
     return res
 
 def testThreatStatus(connection,id_tax):
@@ -513,3 +515,4 @@ def testThreatStatus(connection,id_tax):
     else:
         res.update({'cd_status':None, 'comments': None, 'references': None, 'links': None})
     return res
+
