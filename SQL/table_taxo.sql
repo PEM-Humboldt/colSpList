@@ -211,6 +211,7 @@ CREATE VIEW exotList AS(
         t.tax_rank,
         t.gbifkey,
         STRING_AGG (t_synos.name_auth, ' | ') synonyms,
+        --ARRAY_AGG(t_synos.name_auth) synonyms_list,
         e.is_alien,
         e.is_invasive,
         --e.occ_observed,
