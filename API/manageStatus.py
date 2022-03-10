@@ -13,6 +13,9 @@ from fuzzywuzzy import fuzz
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
+def insertHabitos(connection,cd_tax, habitos):
+    None
+
 def manageSource(cursor, ref_citation, ref_link):
     # Does the source exist
     if ref_link == ' ':

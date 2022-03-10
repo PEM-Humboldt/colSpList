@@ -89,6 +89,7 @@ CREATE TABLE habito
     id serial PRIMARY KEY,
     cd_tax integer REFERENCES taxon(id_tax) NOT NULL,
     cd_hab varchar(50) REFERENCES def_habito(cd_hab) NOT NULL
+    UNIQUE cd_tax, cd_hab
 );
 
 /* These tables might be useful later if we want to categorize more precisely the species
@@ -103,14 +104,8 @@ CREATE TABLE uso
     cd_uso varchar(15) PRIMARY KEY,
     descr_uso text
 );
-
-CREATE TABLE habito
-(
-    cd_tax integer REFERENCES taxon("id_tax") NOT NULL
-    habito varchar(25) NOT NULL
-)
-;
 */
+
 CREATE TABLE exot
 (
     cd_tax integer PRIMARY KEY REFERENCES taxon(id_tax),

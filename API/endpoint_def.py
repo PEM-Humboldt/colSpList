@@ -1,12 +1,12 @@
 from flask import Flask, render_template, jsonify
 from flask_restful import Resource, Api
-from main import manageInputTax
-from main import manageInputThreat
-from main import manageInputEndem
-from main import manageInputExot
-from main import testEndemStatus
-from main import testExotStatus
-from main import testThreatStatus
+from taxo import manageInputTax
+from manageStatus import manageInputThreat
+from manageStatus import manageInputEndem
+from manageStatus import manageInputExot
+from getStatus import testEndemStatus
+from getStatus import testExotStatus
+from getStatus import testThreatStatus
 from webargs import fields, validate,missing
 from webargs.flaskparser import parser
 from webargs.flaskparser import use_args,use_kwargs,abort
