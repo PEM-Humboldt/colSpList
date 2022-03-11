@@ -35,8 +35,8 @@ class testEndem(Resource):
     @use_kwargs(taxInputArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        id_tax = manageInputTax(**inputArgs)
-        res = testEndemStatus(conn,id_tax)
+        cd_tax = manageInputTax(**inputArgs)
+        res = testEndemStatus(conn,cd_tax)
         conn.close()
         return res
         
@@ -46,8 +46,8 @@ class testExot(Resource):
     @use_kwargs(taxInputArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        id_tax = manageInputTax(**inputArgs)
-        res = testExotStatus(conn,id_tax)
+        cd_tax = manageInputTax(**inputArgs)
+        res = testExotStatus(conn,cd_tax)
         conn.close()
         return res
 
@@ -56,8 +56,8 @@ class testThreat(Resource):
     @use_kwargs(taxInputArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        id_tax = manageInputTax(**inputArgs)
-        res = testThreatStatus(conn,id_tax)
+        cd_tax = manageInputTax(**inputArgs)
+        res = testThreatStatus(conn,cd_tax)
         conn.close()
         return res
 
@@ -65,24 +65,24 @@ class insertEndem(Resource):
     @use_kwargs(inputEndemArgs)
     def post(self,**inputEndem):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        id_tax = manageInputTax(**inputEndem)
-        res = manageInputEndem(id_tax, connection = conn, **inputEndem)
+        cd_tax = manageInputTax(**inputEndem)
+        res = manageInputEndem(cd_tax, connection = conn, **inputEndem)
         return res
 
 class insertExot(Resource):
     @use_kwargs(inputExotArgs)
     def post(self, **inputExot):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        id_tax = manageInputTax(**inputExot)
-        res = manageInputExot(id_tax, connection = conn, **inputExot)
+        cd_tax = manageInputTax(**inputExot)
+        res = manageInputExot(cd_tax, connection = conn, **inputExot)
         return res
     
 class insertThreat(Resource):
     @use_kwargs(inputThreatArgs)
     def post(self, **inputThreat):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        id_tax = manageInputTax(**inputThreat)
-        res = manageInputThreat(id_tax, connection = conn, **inputThreat)
+        cd_tax = manageInputTax(**inputThreat)
+        res = manageInputThreat(cd_tax, connection = conn, **inputThreat)
         conn.close()
         return res
 

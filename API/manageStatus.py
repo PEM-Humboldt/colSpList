@@ -36,10 +36,10 @@ def manageSource(cursor, ref_citation, ref_link):
     # it should return the id of the source in the database
     return(cdRef)
 
-def manageInputThreat(id_tax, connection, **inputThreat):
+def manageInputThreat(cd_tax, connection, **inputThreat):
     # test whether status is compatible with the database specification
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    SQL = "SELECT count(*) FROM threat_status WHERE id_status = %s"
+    SQL = "SELECT count(*) FROM threat_status WHERE cd_status = %s"
     cur.execute(SQL, [inputThreat.get('threatstatus')])
     nb = cur.fetchone()['count']
     compatible = bool(nb)
@@ -48,12 +48,12 @@ def manageInputThreat(id_tax, connection, **inputThreat):
     else:
         # find the threat status if it exists in the database
         SQL = "SELECT count(*) FROM threat WHERE cd_tax=%s"
-        cur.execute(SQL,[id_tax])
+        cur.execute(SQL,[cd_tax])
         nb = cur.fetchone()['count']
         statusExists = bool(nb)
         if statusExists:
             # if it exists, look whether it is compatible with the current status
-            threatStatus = getThreatStatus(cur,id_tax)
+            threatStatus = getThreatStatus(cur,cd_tax)
             sameStatus = (threatStatus.get('cd_status') == inputThreat['threatstatus'])
             if(not sameStatus):
                 raise Exception("The taxon already exists in the database with another threat status")
@@ -64,15 +64,15 @@ def manageInputThreat(id_tax, connection, **inputThreat):
             if not statusExists:
                 # if it is compatible with an existing status, insert the new source
                 SQL = "INSERT INTO threat(cd_tax,cd_status,comments) VALUES (%s,%s,%s)"
-                cur.execute(SQL, [id_tax, inputThreat['threatstatus'],inputThreat.get('comments')])
+                cur.execute(SQL, [cd_tax, inputThreat['threatstatus'],inputThreat.get('comments')])
             # if it does not exist insert the source, the status and make the links
             for i in range(len(cdRefs)):
                 SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_threat AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_threat(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
-                cur.execute(SQL,[cdRefs[i],id_tax])
-    return {'id_tax': id_tax,'cdRefs': cdRefs}
+                cur.execute(SQL,[cdRefs[i],cd_tax])
+    return {'cd_tax': cd_tax,'cdRefs': cdRefs}
 
 
-def manageInputEndem(id_tax,connection,**inputEndem):
+def manageInputEndem(cd_tax,connection,**inputEndem):
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     SQL = "WITH e AS (SELECT %s::text AS nivel) SELECT count(*) FROM nivel_endem,e WHERE descr_endem_es = e.nivel OR descr_endem_en = e.nivel OR cd_nivel::text=e.nivel"
     cur.execute(SQL, [inputEndem.get('endemstatus')])
@@ -87,12 +87,12 @@ def manageInputEndem(id_tax,connection,**inputEndem):
         nivInput = cur.fetchone()['cd_nivel']
         # find the threat status if it exists in the database
         SQL = "SELECT count(*) FROM endemic WHERE cd_tax=%s"
-        cur.execute(SQL,[id_tax])
+        cur.execute(SQL,[cd_tax])
         nb = cur.fetchone()['count']
         statusExists = bool(nb)
         if statusExists:
             # if it exists, look whether it is compatible with the current status
-            endemStatus = getEndemStatus(cur,id_tax)
+            endemStatus = getEndemStatus(cur,cd_tax)
             sameStatus = (nivInput == endemStatus['cd_nivel'])
             if(not sameStatus):
                 raise Exception("The taxon already exists in the database with another endemic status")
@@ -103,23 +103,23 @@ def manageInputEndem(id_tax,connection,**inputEndem):
             if not statusExists:
                 # if it is compatible with an existing status, insert the new source
                 SQL = "INSERT INTO endemic(cd_tax,cd_nivel,comments) VALUES (%s,%s,%s)"
-                cur.execute(SQL, [id_tax, nivInput,inputEndem.get('comments')])
+                cur.execute(SQL, [cd_tax, nivInput,inputEndem.get('comments')])
             # if it does not exist insert the source, the status and make the links
             for i in range(len(cdRefs)):
                 SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_endem AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_endem(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
-                cur.execute(SQL,[cdRefs[i],id_tax])
-    return {'id_tax': id_tax,'cdRefs': cdRefs}
+                cur.execute(SQL,[cdRefs[i],cd_tax])
+    return {'cd_tax': cd_tax,'cdRefs': cdRefs}
 
-def manageInputExot(id_tax,connection,**inputExot):
+def manageInputExot(cd_tax,connection,**inputExot):
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     # find the  status if it exists in the database
     SQL = "SELECT count(*) FROM exot WHERE cd_tax=%s"
-    cur.execute(SQL,[id_tax])
+    cur.execute(SQL,[cd_tax])
     nb = cur.fetchone()['count']
     statusExists = bool(nb)
     if statusExists:
         # if it exists, look whether it is compatible with the current status
-        exotStatus = getExotStatus(cur,id_tax)
+        exotStatus = getExotStatus(cur,cd_tax)
         sameStatus = (inputExot.get('is_alien') == exotStatus['is_alien']) and (inputExot.get('is_invasive') == exotStatus['is_invasive'])   
         if(not sameStatus):
             raise Exception("The taxon already exists in the database with another alien/invasive status")
@@ -130,11 +130,11 @@ def manageInputExot(id_tax,connection,**inputExot):
             if not statusExists:
                 # if it is compatible with an existing status, insert the new source
                 SQL = "INSERT INTO exot(cd_tax,is_alien,is_invasive,comments) VALUES (%s,%s,%s,%s)"
-                cur.execute(SQL, [id_tax,inputExot.get('is_alien'),inputExot.get('is_invasive'),inputExot.get('comments')])
+                cur.execute(SQL, [cd_tax,inputExot.get('is_alien'),inputExot.get('is_invasive'),inputExot.get('comments')])
             # if it does not exist insert the source, the status and make the links
             for i in range(len(cdRefs)):
                 SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_exot AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_exot(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
-                cur.execute(SQL,[cdRefs[i],id_tax])
-    return {'id_tax': id_tax,'cdRefs': cdRefs}
+                cur.execute(SQL,[cdRefs[i],cd_tax])
+    return {'cd_tax': cd_tax,'cdRefs': cdRefs}
 
 

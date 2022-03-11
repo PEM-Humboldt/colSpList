@@ -64,7 +64,7 @@ def test_taxInDb(connection,**kwargs):
     cur = connection.cursor()
     alreadyInDb = False
     gbifMatchMode = None
-    idTax = None
+    cdTax = None
     if (kwargs.get('gbifkey') is not None):
         SQL = "SELECT count(*) AS nb FROM taxon WHERE gbifkey = %s"
         cur.execute(SQL, [kwargs.get('gbifkey')])
@@ -78,9 +78,9 @@ def test_taxInDb(connection,**kwargs):
                 if (diffTaxName < 0.75):
                     raise Exception("Name of the taxon does not correspond to gbifkey")
             alreadyInDb = True
-            SQL = "SELECT id_tax FROM taxon WHERE gbifkey = %s"
+            SQL = "SELECT cd_tax FROM taxon WHERE gbifkey = %s"
             cur.execute(SQL,[kwargs.get('gbifkey')])
-            idTax,  = cur.fetchone()
+            cdTax,  = cur.fetchone()
         elif (gbifKeyInDb_nb == 0):
             gbifMatchMode = 'gbifkey'
         else :
@@ -91,9 +91,9 @@ def test_taxInDb(connection,**kwargs):
         gbifSciInDb_nb, = cur.fetchone()
         if (gbifSciInDb_nb == 1):
             alreadyInDb = True
-            SQL = "SELECT id_tax FROM taxon WHERE name_auth = %s"
+            SQL = "SELECT cd_tax FROM taxon WHERE name_auth = %s"
             cur.execute(SQL,[kwargs.get('scientificname')])
-            idTax,  = cur.fetchone()
+            cdTax,  = cur.fetchone()
         elif (gbifSciInDb_nb == 0):
             infoTax = get_gbif_tax_from_sci_name(kwargs.get('scientificname'))
             gbifMatchMode = 'scientificname'
@@ -105,9 +105,9 @@ def test_taxInDb(connection,**kwargs):
         gbifNameInDb_nb, = cur.fetchone()
         if (gbifNameInDb_nb == 1):
             alreadyInDb = True
-            SQL = "SELECT id_tax FROM taxon WHERE name = %s"
+            SQL = "SELECT cd_tax FROM taxon WHERE name = %s"
             cur.execute(SQL, [kwargs.get('canonicalname')])
-            idTax, = cur.fetchone()
+            cdTax, = cur.fetchone()
         elif (gbifNameInDb_nb == 0):
             infoTax = get_gbif_tax_from_name(kwargs.get('canonicalname'))
             gbifMatchMode = 'canonicalname'
@@ -116,7 +116,7 @@ def test_taxInDb(connection,**kwargs):
     else:
         raise Exception("Either 'gbifkey', or 'scientificname', or 'canonicalname' should be included in the parameters in order to be able to identify the taxon")
     cur.close()
-    return {'alreadyInDb': alreadyInDb, 'gbifMatchMode': gbifMatchMode, 'idTax': idTax}
+    return {'alreadyInDb': alreadyInDb, 'gbifMatchMode': gbifMatchMode, 'cdTax': cdTax}
 
 def get_infoTax(**kwargs):
     foundGbif = False
@@ -141,7 +141,7 @@ def get_infoTax(**kwargs):
 
 def get_rank(connection,rankInput):
     cur = connection.cursor()
-    SQL = "WITH a as (SELECT %s AS input) SELECT rank_name,rank_level FROM tax_rank,A WHERE gbif_bb_marker = a.input OR rank_name = a.input OR id_rank= a.input"
+    SQL = "WITH a as (SELECT %s AS input) SELECT rank_name,rank_level FROM tax_rank,A WHERE gbif_bb_marker = a.input OR rank_name = a.input OR cd_rank= a.input"
     cur.execute(SQL,[rankInput])
     rank, level= cur.fetchone()
     cur.close()
@@ -224,21 +224,21 @@ def format_parents(connection,parents):
     for i in parents:
         i.update(test_taxInDb(connection,**{'gbifkey':i.get('key')}))
         if(i.get('alreadyInDb')):
-            idParentInDb=i.get('idTax')
+            idParentInDb=i.get('cdTax')
         else:
             listFormatted.append({'name':i.get('canonicalName'), 'name_auth': i.get('scientificName'),'auth':i.get('authorship'),'tax_rank_name': i.get('rank'), 'status': i.get('taxonomicStatus'), 'gbifkey':i.get('key'), 'source': None})
     return idParentInDb, listFormatted
 
-def acceptedId(connection,id_tax:int):
+def acceptedId(connection,cd_tax:int):
     cur = connection.cursor()
-    SQL = "SELECT COALESCE(cd_syno,id_tax) FROM taxon WHERE id_tax=%s"
-    cur.execute(SQL,[id_tax])
+    SQL = "SELECT COALESCE(cd_syno,cd_tax) FROM taxon WHERE cd_tax=%s"
+    cur.execute(SQL,[cd_tax])
     res, =cur.fetchone()
     cur.close()
     return res
 
 def insertTax(cursor,idParent,idSyno,**tax):
-    SQL = "WITH a AS( SELECT %s AS name, %s AS name_auth, %s AS auth, %s AS name_rank, %s AS status, %s AS gbif_key, %s AS source, %s AS cd_sup, %s AS cd_syno), b AS (SELECT name, name_auth, CASE WHEN NOT auth ~ '^ *$' THEN auth ELSE NULL END AS auth, id_rank,cd_sup::int, cd_syno::int, status, gbif_key, source::int FROM a JOIN tax_rank t ON a.name_rank=t.rank_name)  INSERT INTO taxon(name,name_auth,auth,tax_rank,cd_sup,cd_syno,status, gbifkey, source) SELECT * FROM b RETURNING id_tax"
+    SQL = "WITH a AS( SELECT %s AS name, %s AS name_auth, %s AS auth, %s AS name_rank, %s AS status, %s AS gbif_key, %s AS source, %s AS cd_sup, %s AS cd_syno), b AS (SELECT name, name_auth, CASE WHEN NOT auth ~ '^ *$' THEN auth ELSE NULL END AS auth, cd_rank,cd_sup::int, cd_syno::int, status, gbif_key, source::int FROM a JOIN tax_rank t ON a.name_rank=t.rank_name)  INSERT INTO taxon(name,name_auth,auth,tax_rank,cd_sup,cd_syno,status, gbifkey, source) SELECT * FROM b RETURNING cd_tax"
     cursor.execute(SQL,(tax.get('name'), tax.get('name_auth'), tax.get('auth'), tax.get('tax_rank_name'),tax.get('status'), tax.get('gbifkey'),tax.get('source'),idParent,idSyno))
     idInserted, = cursor.fetchone()
     return idInserted
@@ -263,7 +263,7 @@ def manageInputTax(**inputTax):
         if(inputTax.get('foundGbif')):
             recheck = test_taxInDb(connection=conn,gbifkey=inputTax.get('key'))
             inputTax['alreadyInDb']=recheck.get('alreadyInDb')
-            inputTax['idTax'] = recheck.get('idTax')
+            inputTax['cdTax'] = recheck.get('cdTax')
     if (not inputTax.get('alreadyInDb')):
         # synonyms
         if(inputTax.get('foundGbif') and inputTax.get('synonym')): # synonym found through gbif, note: all synonym info from the arguments (positive, negative, precise or not) in the function will not be considered... GBIF being our backbone here!
@@ -283,7 +283,7 @@ def manageInputTax(**inputTax):
                 acceptedTax['syno'] = False
                 recheckAccepted = test_taxInDb(connection=conn,gbifkey=acceptedTax.get('key'))
                 acceptedTax['alreadyInDb'] = recheckAccepted.get('alreadyInDb')
-                acceptedTax['idTax'] = recheckAccepted.get('idTax')
+                acceptedTax['cdTax'] = recheckAccepted.get('cdTax')
         # The smart  move I think would be to manage formats (taxa recognized or not by gbif) here in order to:
         # - get the ranks
         # - get the simplified versions of taxa before going to parents
@@ -323,9 +323,9 @@ def manageInputTax(**inputTax):
                     for i in range(0,len(parentsFormatted)):
                         idParentInDb = insertTax(cur,idParentInDb,None,**parentsFormatted[i])
                 else:
-                    idParentInDb=parentTax.get('idTax')
+                    idParentInDb=parentTax.get('cdTax')
                 if(syno and acceptedTax.get('alreadyInDb')):
-                    accId=acceptedTax.get('idTax')
+                    accId=acceptedTax.get('cdTax')
                 else:
                     accId=insertTax(cur,idParentInDb,idSyno=None,**accepted)
                 if(syno):
@@ -333,7 +333,7 @@ def manageInputTax(**inputTax):
         cur.close()
         conn.close()
     else:
-        accId = acceptedId(connection=conn,id_tax=inputTax.get('idTax'))
+        accId = acceptedId(connection=conn,cd_tax=inputTax.get('cdTax'))
         conn.close()
     return accId
 
