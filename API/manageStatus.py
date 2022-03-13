@@ -10,6 +10,10 @@ import psycopg2.extras
 from io import BytesIO
 from flask import send_file
 from fuzzywuzzy import fuzz
+from getStatus import getThreatStatus
+from getStatus import getExotStatus
+from getStatus import getEndemStatus
+
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 

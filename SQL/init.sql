@@ -1,3 +1,5 @@
+UPDATE pg_database set encoding = pg_char_to_encoding('UTF8') where datname='sp_list';
+
 CREATE TABLE tax_rank
 (
     cd_rank varchar(6) PRIMARY KEY,
@@ -88,8 +90,8 @@ CREATE TABLE habito
 (
     id serial PRIMARY KEY,
     cd_tax integer REFERENCES taxon(cd_tax) NOT NULL,
-    cd_hab varchar(50) REFERENCES def_habito(cd_hab) NOT NULL
-    UNIQUE cd_tax, cd_hab
+    cd_hab varchar(50) REFERENCES def_habito(cd_hab) NOT NULL,
+    UNIQUE (cd_tax, cd_hab)
 );
 
 /* These tables might be useful later if we want to categorize more precisely the species
