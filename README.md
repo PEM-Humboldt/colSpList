@@ -151,5 +151,6 @@ export DATABASE_URL=postgres://localhost/sp_list
 Run the API locally:
 
 ``` bash
+cd API
 heroku local
 ```
