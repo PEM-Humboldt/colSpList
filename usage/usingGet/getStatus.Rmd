@@ -1,0 +1,157 @@
+---
+title: "Testing and getting species status with the colSpList API"
+output: 
+  github_document:
+    number_section: true
+---
+
+The colSpList API allows to know whether species have a status for Colombia in terms of endemism, threat and alien/invasive.
+In this document, we will show how to use the *GET* endpoints of the API with simple programs in R and/or Python.
+
+<!--
+La API colSpList permite saber si las especies son exóticas/invasivas, endémicas o amenazadas.
+En este documento, mostraré como utilizar los endpoints GET de la API, desde códigos simples en R o Python.
+-->
+
+
+************************
+
+**Note 1**:
+
+This document was created from a Rmarkdown document, with the output format "github_document".
+In order to use this type of file, please install the packages *knitr* and *rmarkdown* in R.
+
+1. If you want to compile the document as a markdown document for github, while applying all the code contained in the file
+    + use ```rmarkdown::render("file.Rmd")```
+2. If you want to extract the R code of the document as a R script
+    + use ```knitr::purl("file.Rmd")``` 
+
+Note: extracting the python code may be done but it is a bit more complex, please search the documentation of the packages *knitr* and *rmarkdown*
+
+**Note 2**:
+
+In a near future these endpoints might return slightly different result for 3 main reasons:
+
+1. For now, in order to work, the API try to insert all species which are sent as parameters. I made it that way because I wanted the API to gain efficiency with its use. However the API is hosted in Heroku, which limits to 10.000  the numbers of rows in the database. Therefore we might reach the maximum quite rapidly with this policy, therefore I will soon change this. **PLEASE DO NOT USE THE API WITH LARGE DATASETS JUST YET**
+1. For now, there is no explicit error handler in the API, so the error are not sent back to the user but need to be checked on the heroku logs. I think this should be changed soon.
+1. We did not yet implement the security policies, we might have to change slightly the functioning of the API in the future in order to implement token-based security of the API
+
+
+***********************
+
+# Generalities
+
+The main endpoints to get informations about the species statuses are:
+
+* testEndem
+* testExot
+* testThreat
+
+In all cases, the parameters of the endpoints may be sent through a http query and/or a JSON objects associated with the query.
+
+The parameters required for these endpoints to work are the ones that allow the API to recognize the taxon that you are looking for:
+
+* **canonicalname**: the latin name of the species, without authorship
+* **scientificname**: the complete name, with authorship
+* **gbifkey** the key of the taxon in GBIF (speciesKey from the GBIF backbone)
+
+Note that the API will automatically try to correct the small orthographic mistakes and resolve cases of synonymy.
+
+# Simple usage from the internet browser
+
+Copy the following link to your browser to check whether the taxon *Espeletia paipana* is endemic in colombia:
+
+[https://colsplist.herokuapp.com/testEndem?canonicalname=Espeletia%20paipana](https://colsplist.herokuapp.com/testEndem?canonicalname=Espeletia%20paipana)
+
+The result is directly visible in you browser.
+
+In order to change the species, just edit the part after `canonicalname=` with whichever species you are looking for.
+
+Example of *Paroaria nigrogenis*:
+
+<https://colsplist.herokuapp.com/testEndem?canonicalname=Paroaria%20nigrogenis>
+
+The speciesKey of *Paroaria nigrogenis* in the gbif taxonomic backbone is 5845551
+
+So you may as well try the following URL, with the same result:
+
+<https://colsplist.herokuapp.com/testEndem?gbifkey=5845551>
+
+Now you may replace the "testEndem" by "testExot" (alien/invasive status) or "testThreat" (threat status) in the URLs.
+
+
+
+# Simple usage in R
+
+
+```{r}
+require(httr)
+require(jsonlite)
+baseURL <- "https://colsplist.herokuapp.com/"
+```
+
+
+Testing whether *Hylocharis grayi* is endemic:
+
+```{r}
+speciesToTest <- "Hylocharis grayi"
+endpoint <- "testEndem"
+res <- GET(paste0(baseURL,endpoint),query=list(canonicalname=speciesToTest),content_type("application/json"))
+content(res)
+```
+
+Testing whether it is alien/invasive:
+
+```{r}
+endpoint <- "testExot"
+res <- GET(paste0(baseURL,endpoint),query=list(canonicalname=speciesToTest),content_type("application/json"))
+content(res)
+```
+
+Testing whether *Espeletia paipana* is threatened in Colombia
+
+```{r}
+speciesToTest <- "Espeletia paipana"
+endpoint <- "testThreat"
+res <- GET(paste0(baseURL,endpoint),query=list(canonicalname=speciesToTest),content_type("application/json"))
+content(res)
+```
+
+# Basic usage in Python
+
+Testing whether *Polyerata amabilis* is endemic in Colombia:
+
+```{python}
+import requests
+import json
+baseURL = "https://colsplist.herokuapp.com/"
+endpoint = "testEndem"
+speciesToCheck = "Polyerata amabilis"
+response = requests.get(baseURL+endpoint, params={'canonicalname':speciesToCheck})
+response.json()
+```
+
+Testing whether  *Polyerata amabilis* is threatened in Colombia:
+
+```{python}
+import requests
+import json
+baseURL = "https://colsplist.herokuapp.com/"
+endpoint = "testThreat"
+speciesToCheck = "Polyerata amabilis"
+response = requests.get(baseURL+endpoint, params={'canonicalname':speciesToCheck})
+response.json()
+```
+
+
+Testing whether  *Acacia decurrens* is alien/invasive in Colombia:
+
+```{python}
+import requests
+import json
+baseURL = "https://colsplist.herokuapp.com/"
+endpoint = "testExot"
+speciesToCheck = "Acacia decurrens"
+response = requests.get(baseURL+endpoint, params={'canonicalname':speciesToCheck})
+response.json()
+```

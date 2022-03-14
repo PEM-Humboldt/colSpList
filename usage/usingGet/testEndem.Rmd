@@ -1,7 +1,0 @@
-```{r}
-a<-GET("http://localhost:5000/testEndem",query=list(canonicalname="Hylocharis grayi"),content_type("application/json"))
-content(a)
-a<-GET("http://localhost:5000/testExot",query=list(canonicalname="Hylocharis grayi"),content_type("application/json"))
-content(a)
-```
-
