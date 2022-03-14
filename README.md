@@ -3,8 +3,10 @@ colSpList API
 
 -   [1 Content](#content)
 -   [2 Deploying the API with Heroku](#deploying-the-api-with-heroku)
-    -   [2.1 Deployment in heroku](#deployment-in-heroku)
-    -   [2.2 Local deployment for development and
+    -   [2.1 Creation of the local
+        database](#creation-of-the-local-database)
+    -   [2.2 Deployment in heroku](#deployment-in-heroku)
+    -   [2.3 Local deployment for development and
         test](#local-deployment-for-development-and-test)
 
 ------------------------------------------------------------------------
@@ -52,7 +54,33 @@ Then, clone the repository:
     git clone https://github.com/marbotte/colSpList
     cd colSpList
 
-## 2.1 Deployment in heroku
+## 2.1 Creation of the local database
+
+Whether you want to deploy the API locally or on heroku, the best
+solution for the database is to create one locally, and then to push it
+on heroku or use it locally (in particular, there is no other simple way
+to implement a base encoding of the postgres database in Unicode).
+
+Therefore we need to create a local database called here “sp_list”.
+
+In bash it may be done with:
+
+``` bash
+createdb sp_list
+```
+
+Create a
+[pgpass](https://www.postgresql.org/docs/9.3/libpq-pgpass.html), in
+order not to worry about your credentials to connect to the local
+database
+
+Then, the initialization of the database is done with:
+
+``` bash
+psql sp_list -f SQL/init.sql
+```
+
+## 2.2 Deployment in heroku
 
 You first need to login to heroku from the CLI:
 
@@ -80,16 +108,10 @@ Create the heroku database:
 heroku addons:create heroku-postgresql:hobby-dev
 ```
 
-Connect to the database with psql:
+Push the local database to heroku
 
 ``` bash
-heroku pg:psql
-```
-
-Run the initialization script for the database, in psql:
-
-``` psql
-\i SQL/init.sql
+heroku pg:push sp_list DATABASE_URL
 ```
 
 Finally, deploy the web-based heroku system:
@@ -102,30 +124,10 @@ heroku open
 More explanation
 [here](https://devcenter.heroku.com/articles/getting-started-with-python)
 
-## 2.2 Local deployment for development and test
+## 2.3 Local deployment for development and test
 
-In order to deploy locally the API, we first need to create a local
-database, which we call “sp_list” here.
-
-In bash it may be done with:
-
-``` bash
-createdb sp_list
-```
-
-Create a
-[pgpass](https://www.postgresql.org/docs/9.3/libpq-pgpass.html), in
-order not to worry about your credentials to connect to the local
-database
-
-Then, the initialization of the database is done with:
-
-``` bash
-psql sp_list -f SQL/init.sql
-```
-
-Now we will manage the python environment necessary to run the API. You
-do not have to use a particular python environment, but it may be
+First we will manage the python environment necessary to run the API.
+You do not have to use a particular python environment, but it may be
 helpful if you have other python projects which may present different
 requirements:
 
