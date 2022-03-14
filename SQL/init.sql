@@ -122,7 +122,7 @@ CREATE TABLE exot
 
 CREATE TABLE threat_status
 (
-    id_status varchar(15) PRIMARY KEY,
+    cd_status varchar(15) PRIMARY KEY,
     level int NOT NULL,
     status_descr text
 );
@@ -144,7 +144,7 @@ VALUES
 CREATE TABLE threat
 (
     cd_tax integer PRIMARY KEY REFERENCES taxon(cd_tax),
-    cd_status varchar(15) REFERENCES threat_status(id_status),
+    cd_status varchar(15) REFERENCES threat_status(cd_status),
     comments text,
     comment text
 );

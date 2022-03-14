@@ -1,6 +1,22 @@
 Inserting threatened species with the colSpList API
 ================
 
+------------------------------------------------------------------------
+
+**Note**:
+
+This document was created from a Rmarkdown document, with the output
+format “github_document”. In order to use this type of file, please
+install the packages *knitr* and *rmarkdown* in R.
+
+1.  If you want to compile the document as a markdown document for
+    github, while applying all the code contained in the file
+    -   use `rmarkdown::render("file.Rmd")`
+2.  If you want to extract the R code of the document as a R script
+    -   use `knitr::purl("file.Rmd")`
+
+------------------------------------------------------------------------
+
 In order to show how to work with the colSpList API and the threatened
 species, we will use the species list from the official “Resolución 1912
 de 2017, from the Colombian ministry of environment (publicly available
@@ -52,11 +68,11 @@ POST(paste(baseURL,baseResource,sep="/"),body=sendJson, content_type("applicatio
 ```
 
     ## Response [http://localhost:5000/insertThreat]
-    ##   Date: 2022-02-24 17:32
+    ##   Date: 2022-03-14 01:36
     ##   Status: 200
     ##   Content-Type: application/json
     ##   Size: 34 B
-    ## {"id_tax": 1862, "cdRefs": [216]}
+    ## {"cd_tax": 1863, "cdRefs": [222]}
 
 ## 1.2 In python
 
@@ -70,7 +86,7 @@ x = requests.post(url, json = dictTosend)
 x.json()
 ```
 
-    ## {'id_tax': 1862, 'cdRefs': [216]}
+    ## {'cd_tax': 1863, 'cdRefs': [222]}
 
 # 2 A list of species and their status
 
@@ -122,7 +138,7 @@ listSpStatus = pd.read_csv(file, sep='\t')
 # 3 problems
 
 ``` r
-pbs <- !sapply(res,function(x)"id_tax"%in%names(content(x)))
+pbs <- !sapply(res,function(x)"cd_tax"%in%names(content(x)))
 sum(pbs)
 ```
 

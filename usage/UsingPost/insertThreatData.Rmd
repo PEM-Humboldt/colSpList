@@ -5,6 +5,20 @@ output:
     number_section: true
 ---
 
+************************
+
+**Note**:
+
+This document was created from a Rmarkdown document, with the output format "github_document".
+In order to use this type of file, please install the packages *knitr* and *rmarkdown* in R.
+
+1. If you want to compile the document as a markdown document for github, while applying all the code contained in the file
+    + use ```rmarkdown::render("file.Rmd")```
+2. If you want to extract the R code of the document as a R script
+    + use ```knitr::purl("file.Rmd")``` 
+
+***********************
+
 In order to show how to work with the colSpList API and the threatened species, we will use the species list from the official "Resolución 1912 de 2017, from the Colombian ministry of environment (publicly available at <https://ipt.biodiversidad.co/sib/resource?r=resolucion1912-2017mads>)
 
 # Basic usage : example of one only species
@@ -94,6 +108,6 @@ listSpStatus = pd.read_csv(file, sep='\t')
 # problems
 
 ```{r}
-pbs <- !sapply(res,function(x)"id_tax"%in%names(content(x)))
+pbs <- !sapply(res,function(x)"cd_tax"%in%names(content(x)))
 sum(pbs)
 ```

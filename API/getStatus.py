@@ -25,6 +25,12 @@ def getEndemStatus(cursor, cd_tax):
     res = dict(cursor.fetchone())
     return res
 
+def getExotStatus(cursor, id_tax):
+    SQL = "SELECT e.is_alien, e.is_invasive,  e.comments, STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references, STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links FROM exot e LEFT JOIN ref_exot re ON e.cd_tax=re.cd_tax   LEFT JOIN refer r ON re.cd_ref=r.cd_ref WHERE e.cd_tax=%s GROUP BY e.is_alien, e.is_invasive, e.comments"
+    cursor.execute(SQL,[id_tax])
+    res = dict(cursor.fetchone())
+    return res
+
 def testEndemStatus(connection,cd_tax):
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     SQL = "SELECT count(*) FROM endemic WHERE cd_tax = %s"

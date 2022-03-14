@@ -1,6 +1,22 @@
 Inserting endemic species with the colSpList API
 ================
 
+------------------------------------------------------------------------
+
+**Note**:
+
+This document was created from a Rmarkdown document, with the output
+format “github_document”. In order to use this type of file, please
+install the packages *knitr* and *rmarkdown* in R.
+
+1.  If you want to compile the document as a markdown document for
+    github, while applying all the code contained in the file
+    -   use `rmarkdown::render("file.Rmd")`
+2.  If you want to extract the R code of the document as a R script
+    -   use `knitr::purl("file.Rmd")`
+
+------------------------------------------------------------------------
+
 In order to show how to work with the colSpList API and the threatened
 species, we will use the species list from Ceiba, concerning the endemic
 bird species of Colombia (publicly available at
@@ -506,11 +522,11 @@ POST('http://localhost:5000/insertEndem',body=sendJson, content_type("applicatio
 ```
 
     ## Response [http://localhost:5000/insertEndem]
-    ##   Date: 2022-02-24 16:35
+    ##   Date: 2022-03-14 01:33
     ##   Status: 200
     ##   Content-Type: application/json
-    ##   Size: 44 B
-    ## {"id_tax": 7, "cdRefs": [1, 2, 3, 4, 5, 6]}
+    ##   Size: 53 B
+    ## {"cd_tax": 1281, "cdRefs": [91, 92, 93, 94, 95, 96]}
 
 Now we do it for all the list:
 
@@ -525,7 +541,7 @@ for(i in 1:length(masterList))
 # 3 Problems
 
 ``` r
-pbs <- !sapply(res,function(x)"id_tax"%in%names(content(x)))
+pbs <- !sapply(res,function(x)"cd_tax"%in%names(content(x)))
 ```
 
     ## Registered S3 method overwritten by 'jsonlite':
@@ -536,6 +552,6 @@ pbs <- !sapply(res,function(x)"id_tax"%in%names(content(x)))
 any(pbs)
 ```
 
-    ## [1] TRUE
+    ## [1] FALSE
 
 No problem found!

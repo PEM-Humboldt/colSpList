@@ -1,6 +1,22 @@
 Inserting exotic and invasive species with the colSpList API
 ================
 
+------------------------------------------------------------------------
+
+**Note**:
+
+This document was created from a Rmarkdown document, with the output
+format “github_document”. In order to use this type of file, please
+install the packages *knitr* and *rmarkdown* in R.
+
+1.  If you want to compile the document as a markdown document for
+    github, while applying all the code contained in the file
+    -   use `rmarkdown::render("file.Rmd")`
+2.  If you want to extract the R code of the document as a R script
+    -   use `knitr::purl("file.Rmd")`
+
+------------------------------------------------------------------------
+
 The API is running on a heroku server which may be used with the
 following parameters:
 
@@ -820,11 +836,11 @@ POST('http://localhost:5000/insertExot',body=sendJson, content_type("application
 ```
 
     ## Response [http://localhost:5000/insertExot]
-    ##   Date: 2022-02-24 17:00
+    ##   Date: 2022-03-14 01:23
     ##   Status: 200
     ##   Content-Type: application/json
-    ##   Size: 33 B
-    ## {"id_tax": 743, "cdRefs": [215]}
+    ##   Size: 32 B
+    ## {"cd_tax": 153, "cdRefs": [90]}
 
 Now we do it for all the list:
 
@@ -839,7 +855,7 @@ for(i in 1:length(masterList))
 ##### 2.2.0.1.1 Problems
 
 ``` r
-pbs <- !sapply(res,function(x)"id_tax"%in%names(content(x)))
+pbs <- !sapply(res,function(x)"cd_tax"%in%names(content(x)))
 ```
 
     ## Registered S3 method overwritten by 'jsonlite':
