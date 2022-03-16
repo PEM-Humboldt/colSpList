@@ -51,7 +51,7 @@ used for development and deployment of the API
 
 Then, clone the repository:
 
-    git clone https://github.com/marbotte/colSpList
+    git clone https://github.com/marbotte/colSpList.git
     cd colSpList
 
 ## 2.1 Creation of the local database

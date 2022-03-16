@@ -1,3 +1,7 @@
+"""
+Functions for taxonomic management
+"""
+
 from flask_restful import Resource
 import requests
 import random
@@ -14,27 +18,73 @@ DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
 
-
-
 def get_gbif_tax_from_id(gbifid: int):
+    """
+    Obtaining extensive taxonomic information from the gbif API, when we have the taxonKey of the gbif backbone
+    
+    Parameters
+    ----------
+    gbifid: int
+        taxonKey (speciesKey, parentKey etc.) of the taxon
+    
+    Returns
+    ----------
+    Dictionary containing all the information of the taxon available in the API. Note: the information here is more complete than when we search the taxon through its name
+    """
     api = f"https://api.gbif.org/v1/species/{gbifid}"
     response = requests.get(api)
     content = response.json()
     return content
 
 def get_gbif_tax_from_name(name: str):
+    """
+    Obtaining basic taxonomic information from the gbif API, by running a fuzzy match of the name
+    
+    Parameters
+    ----------
+    name: str
+        canonical name of the taxon (note: fuzzy matching will be done in order to find the closest name)
+    
+    Returns
+    ----------
+    Dictionary containing basic information about the taxon (note: less precise than search through gbifkey
+    """
     api = f"https://api.gbif.org/v1/species/match/?name={name}"
     response = requests.get(api)
     content = response.json()
     return content
 
 def get_gbif_tax_from_sci_name(sci_name: str):
+    """
+    Obtaining basic taxonomic information from the gbif API, by running a fuzzy match of the name
+    
+    Parameters
+    ----------
+    name: str
+        Scientific name (with authorship) of the taxon (note: fuzzy matching will be done in order to find the closest name)
+    
+    Returns
+    ----------
+    Dictionary containing basic information about the taxon (note: less precise than search through gbifkey
+    """
     api = f"https://api.gbif.org/v1/species/match/?name={sci_name},nameType=SCIENTIFIC"
     response = requests.get(api)
     content = response.json()
     return content
 
 def get_gbif_parent(gbifkey: int):
+    """
+    Obtaining basic information about the parents of a taxon through the gbif API
+    
+    Parameters
+    ----------
+    gbifkey: int
+        taxonKey (speciesKey, parentKey etc.) of the taxon in the gbif backbone
+    
+    Returns
+    ----------
+    List of dictionaries with information concerning the parent taxa
+    """
     api= f"https://api.gbif.org/v1/species/{gbifkey}/parents"
     response = requests.get(api)
     content = response.json()
@@ -42,12 +92,35 @@ def get_gbif_parent(gbifkey: int):
     return content
 
 def get_gbif_parsed_from_id(gbifkey: int):
+    """
+    Obtaining supplementary information about the taxa (in particular it allows to retrieve the canonicalNameWithMarker which is the basic name used as "name" in our database)
+    
+    Parameters
+    ----------
+    gbifkey: int
+        taxonKey (speciesKey, parentKey etc.) of the taxon in the gbif backbone
+    Returns
+    ----------
+    Dictionary with supplementary fields concerning the name of the taxon
+    """
     api= f"https://api.gbif.org/v1/species/{gbifkey}/name"
     response = requests.get(api)
     content = response.json()
     return content
 
 def get_gbif_parsed_from_sci_name(sci_name: str):
+    """
+    Perform an analysis of a scientific name through the gbif API and gives all the information it can from a scientific name (note: this also works with taxa which are not in the gbif backbone
+    
+    Parameters
+    ----------
+    sci_name: str
+        scientific name (with authorship) or canonical name of a taxon
+        
+    Returns
+    ----------
+    Dictionary with supplementary fields concerning the name of the taxon
+    """
     api= f"https://api.gbif.org/v1/parser/name?name={sci_name}"
     response = requests.get(api)
     content = response.json()[0]
@@ -55,12 +128,68 @@ def get_gbif_parsed_from_sci_name(sci_name: str):
 
 
 def get_gbif_synonyms(gbifkey: int):
+    """
+    Retrieve the synonyms of a name through the gbif API
+    
+    Parameters
+    ----------
+    gbifkey: int
+        taxonKey (speciesKey, parentKey etc.) of the taxon in the gbif backbone
+    
+    Returns
+    ----------
+    List of dictionaries with basic information about the synonyms of the taxon
+    """
     api= f"https://api.gbif.org/v1/species/{gbifkey}/synonyms"
     response = requests.get(api)
     content = response.json()
     return content
 
 def test_taxInDb(connection,**kwargs):
+    """
+    Test whether a taxon is already in the database. It is done first by looking for a gbifkey of the taxon, then by looking for its scientific name (if there is no gbifkey supplied) and finally the canonical name of the taxon (if no gbifkey or scientificname are supplied
+    
+    Parameters
+    ----------
+    connection: postgres connection
+        connection to the postgres database
+    kwargs: dict
+        Dictionary, must contain at least one of the following parameters to work:
+        gbifkey: int
+            taxonKey (speciesKey, parentKey etc.) of the taxon in the gbif backbone
+        scientificname: str
+            scientific name (with authorship) of the taxon
+        canonicalname: str
+            canonical name of the taxon (we expect canonicalNameWithMarker)
+    
+    Returns
+    ---------
+    Dictionary with the following parameters:
+        alreadyInDb: bool
+            whether the taxon is matched with a taxon in the database
+        gbifmatchmode: str
+            One of 'gbifkey', 'scientificname' or 'canonicalname' showing which should be the method to retrieve the taxon in the gbif API, depending on the information available in the input
+        cd_tax: int
+            if the taxon already exists in the database, its cd_tax, otherwise None
+        
+    Error handling
+    --------------
+    Exception:
+        "Name of the taxon does not correspond to gbifkey"
+        If both canonical name and gbifkey are given, a partial match is performed between the "name" of the taxon corresponding to the gbifkey and the name given as "canonicalname" in kwargs. If we do not find a match between these two names, the exception is raised
+    Exception:
+        "gbifkey more than once in the database, should not be possible"
+        gbifkey corresponds to more than one taxon in the database. In the current data model, gbifkey has an UNIQUE constraint, so we should not ever find this error, but it might be safer to keep it in case we have problems of concurrent INSERT in the database, or if we change the database motor, or data model in the future
+    Exception: 
+        "Name (with author) in the database more than once, should not be possible!"
+        scientificname correspond to more than one taxon in the database (field name_auth in the taxon table). In the current data model, name_auth has an UNIQUE constraint, so we should not ever find this error, but it might be safer to keep it in case we have problems of concurrent INSERT in the database, or if we change the database motor, or data model in the future
+    Exception:
+        "Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to"
+        Since there is no UNIQUE constraint on the "name" field of the taxon table in the database, it is potentially possible that 2 taxa from the database share the same canonical name (with 2 different authorships though). In that case it is impossible to know which of the taxa is referred to, and the function stop, raising this error
+    Exception:
+        "Either 'gbifkey', or 'scientificname', or 'canonicalname' should be included in the parameters in order to be able to identify the taxon"
+        If none of the parameters necessary to identify the taxon are given as parameters in the kwargs dictionary the function stops and raise this exception
+    """
     cur = connection.cursor()
     alreadyInDb = False
     gbifMatchMode = None
@@ -119,6 +248,33 @@ def test_taxInDb(connection,**kwargs):
     return {'alreadyInDb': alreadyInDb, 'gbifMatchMode': gbifMatchMode, 'cdTax': cdTax}
 
 def get_infoTax(**kwargs):
+    """
+    Retrieve information about a taxon from GBIF, depending on the available information
+    
+    Parameters
+    ----------
+    kwargs: dict
+        Dictionary consisting on the input given by the users about the taxon, together with the results of the function test_taxInDb. The important parameters in this dictionary is:
+        gbifMatchMode [mandatory]: str
+            Optimal match mode in GBIF ("gbifkey" > "scientificname" > "canonicalname")
+        gbifkey: int
+            taxonkey from gbif
+        canonicalname: str
+            canonical name of the taxon
+        scientificname: str
+            scientific name of the taxon
+        
+    Returns
+    ---------
+    Returns a dictionary with all the parameters retrieved from gbif, and additional parameters such as:
+        foundGbif: bool
+            Whether the taxon is found in gbif
+    
+    Error handling
+    --------------
+    Exception: "No acceptable gbifMatchMode were provided"
+        If gbifMatchMode is not one of 'gbifkey', 'canonicalname' or 'scientificname' the function cannot know how to query the GBIF API, therefore it sends this exception and stops
+    """
     foundGbif = False
     if (kwargs.get('gbifMatchMode') == 'gbifkey'):
         infoTax = get_gbif_tax_from_id(kwargs.get('gbifkey'))
@@ -140,6 +296,22 @@ def get_infoTax(**kwargs):
     return infoTax
 
 def get_rank(connection,rankInput):
+    """
+    Translate a rank, written in various format into the rank and level (number corresponding to the rank) as codificated in the database
+    
+    parameters
+    -----------
+    connection: postgres connection
+        connection to the database
+    rankInput: str
+        rank name in uppercase ("SUBSPECIES", "GENUS", "SPECIES", "FAMILY" etc.), gbif backbone marker ("subsp.", "gn.", "sp.", "fam." etc.) or cd_rank ("SUBSP", "GN", "SP", "FAM")
+    returns
+    -----------
+    rank: str
+        rank(as a rank name in uppercase) 
+    level: integer
+        rank level (from 1 for the FORM to 29 for DOMAIN, levels lower than 5 are underspecies levels)
+    """
     cur = connection.cursor()
     SQL = "WITH a as (SELECT %s AS input) SELECT rank_name,rank_level FROM tax_rank,A WHERE gbif_bb_marker = a.input OR rank_name = a.input OR cd_rank= a.input"
     cur.execute(SQL,[rankInput])
@@ -149,6 +321,58 @@ def get_rank(connection,rankInput):
     
 
 def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
+    """
+    Format taxon for insertion in the database, case of taxa which are extracted from information given by the user (another function format information extracted from GBIF, so this is mostly for the case where the taxon is not found in GBIF). The function returns also basic information about the direct parent taxon 
+    
+    TODO: it seems that some parameters are useless (connection, acceptedName and acceptedId and are just a legacy from previous versions of the function, check whether we can get rid of them
+    
+    parameters
+    -----------
+    connection: psycopg2 connection
+        connection to the database
+    acceptedName: str
+        In case of synonyms: name of the accepted taxon, otherwise None
+    acceptedId: int 
+        In case of synonyms: cd_tax of the accepted taxon, otherwise None
+    inputTax: dict
+        Dictionary containing all the information available about the taxon (canonicalname, scientificname, authorship, parentscientificname, parentgbifkey, parentcanonicalname, rank, syno [mandatory]
+    
+    Returns
+    --------
+    2 dictionaries:
+        dict1: dict
+        dictionary concerning the taxon with the following parameters:
+            name: str
+                canonical name of the taxon (corresponding to the GBIF canonicalNameWithMarker
+            name_auth : str
+                scientific name of the taxon, with authorship if available
+            auth : str
+                authorship associated with the name of the taxon
+            tax_rank_name: str
+                name of the rank in uppercase
+            status : str
+                taxonomic status (here either SYNONYM or DOUBTFUL, because it is not found in GBIF)
+            gbifkey : str
+                None because the taxa are not found in GBIF
+            source : int
+                bibliographic reference of the taxon, not really implemented yet so: None
+        parentTax : dict
+        dictionary with the following parameters:
+            canonicalname: str
+                canonical name of the parent taxon
+            scientificname: str
+                scientific name of the parent taxon
+            gbifkey: int 
+                Gbif key of the parent taxon
+    Error handling
+    --------------
+    Exception: "Name not found in GBIF and information insufficient to integrate in the database"
+        If there are some mandatory information which are not found in the input from the user, potentially causing disfunctioning of the database, the function raises this exception and stop
+    Exception: "No way to determine the taxon rank"
+        If the rank is not provided and impossible to determine through GBIF API name analysis, the function raises this exception and stops
+    Exception: "No sure way to determine the superior taxon"
+        If there is no sufficient information about the parent taxon and it cannot be retrieved from the analysis of the name of the taxon, the function raises this exception and stops
+    """
     hasSciName = inputTax.get('scientificname') is not None
     hasCanoName = inputTax.get('canonicalname') is not None
     hasAuth = inputTax.get('authorship')
@@ -201,6 +425,57 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
     return {'name': name, 'name_auth': name_auth, 'auth': auth, 'tax_rank_name': rank, 'status': status, 'gbifkey': None, 'source': inputTax.get('source')}, parentTax
 
 def format_gbif_tax(connection,**gbif_tax):
+    """
+    Format the information retrieved from Gbif, in order to insert them in the taxon table of the database
+    
+    Parameters
+    ----------
+    connection: psycopg2 connection
+        connection to the database
+    gbif_tax: dict
+        dictionary with all the information retrieved from GBIF during the different steps of taxon recognition. The dictionary needs to have at least the following parameters:
+            rank: str
+                taxonomic rank of the taxon
+            key: int 
+                key of the taxon in the gbif backbone
+            scientificName: str
+                scientific name of the taxon as it is in GBIF (different from scientificname, given by the user)
+            parentkey : int
+                gbifkey of the parent taxon
+            parent: str
+                canonical name of the parent taxon
+            authorship: str
+                authorship associated included in the scientific name of the taxon
+            syno: bool
+                whether the taxon is a synonym
+            taxonomicStatus: str
+                status of the taxon in the gbif taxon (ACCEPTED, SYNONYM or DOUBTFUL
+    Returns
+    ------------
+    2 dictionaries:
+        dict1: dict
+        dictionary concerning the taxon with the following parameters:
+            name: str
+                canonical name of the taxon (corresponding to the GBIF canonicalNameWithMarker)
+            name_auth : str
+                scientific name of the taxon, with authorship if available
+            auth : str
+                authorship associated with the name of the taxon
+            tax_rank_name: str
+                name of the rank in uppercase
+            status : str
+                taxonomic status (ACCEPTED, SYNONYM or DOUBTFUL)
+            gbifkey : str
+                None because the taxa are not found in GBIF
+            source : int
+                bibliographic reference of the taxon, not really implemented yet so: None
+        parentTax : dict
+        dictionary with the following parameters:
+            canonicalname: str
+                canonical name of the parent taxon
+            gbifkey: int 
+                Gbif key of the parent taxon
+    """
     rank, level_rank = get_rank(connection, gbif_tax.get('rank'))
     if(level_rank < 5):
         parsed = get_gbif_parsed_from_id(gbif_tax.get('key'))
@@ -219,6 +494,23 @@ def format_gbif_tax(connection,**gbif_tax):
     return {'name': name, 'name_auth': name_auth, 'auth': gbif_tax.get('authorship'), 'tax_rank_name': rank, 'status': status, 'gbifkey': gbif_tax.get('key'), 'source' : None}, parentTax
 
 def format_parents(connection,parents):
+    """
+    Look whether the parent taxa (as retrieved from GBIF by the function get_gbif_parent) are already in the database, if not format them in order to insert them later in the database
+    
+    Parameters
+    -----------
+    connection: psycopg2 connection
+        connection to the postgres database
+    parents: list(dict)
+        List of parent taxon information (consisting of dictionaries concerning all the parent taxa) retrieved from the get_gbif_parent function
+    
+    Returns
+    --------
+    idParentInDb: int 
+        cd_tax of the taxon of lower rank which is already in the database (para poder utilizar este cd_tax as the cd_sup of its direct child taxon)
+    listFormatted: list(dict)
+        list of dictionaries concerning all the parent taxa which are not already in the database 
+    """
     idParentInDb = None
     listFormatted = []
     for i in parents:
@@ -230,6 +522,19 @@ def format_parents(connection,parents):
     return idParentInDb, listFormatted
 
 def acceptedId(connection,cd_tax:int):
+    """
+    Returns the cd_tax of the accepted taxon corresponding to the cd_tax given in parameter (either returns the same cd_tax if the taxon is accepted, or its cd_syno if the taxon is a synonym)
+    
+    Parameters
+    ----------
+    connection: psycopg2 connection
+        connection to the postgres database
+    cd_tax: int
+        cd_tax of the taxon
+    Returns
+    -----------
+    cd_tax of the accepted corresponding taxon
+    """
     cur = connection.cursor()
     SQL = "SELECT COALESCE(cd_syno,cd_tax) FROM taxon WHERE cd_tax=%s"
     cur.execute(SQL,[cd_tax])
@@ -238,21 +543,47 @@ def acceptedId(connection,cd_tax:int):
     return res
 
 def insertTax(cursor,idParent,idSyno,**tax):
+    """
+    Insert formatted information from a taxon in the database and returns the new cd_tax created in the database
+    
+    Parameters
+    -----------
+    cursor : psycopg2 cursor
+        cursor corresponding to current operations in the postgres database
+    idParent: int 
+        cd_tax of the parent taxon (None if the taxon is a synonym or if the taxon is of the higher rank in the database)
+    idSyno: int 
+        cd_tax of the accepted taxon in the database (None if the taxon to insert is the accepted taxon)
+    tax: dict
+        dictionary containing the formatted information about the taxon (name, name_auth, tax_rank_name, status, gbifkey, source)
+        
+    Returns
+    -----------
+    cd_tax of the newly inserted taxon 
+    """
     SQL = "WITH a AS( SELECT %s AS name, %s AS name_auth, %s AS auth, %s AS name_rank, %s AS status, %s AS gbif_key, %s AS source, %s AS cd_sup, %s AS cd_syno), b AS (SELECT name, name_auth, CASE WHEN NOT auth ~ '^ *$' THEN auth ELSE NULL END AS auth, cd_rank,cd_sup::int, cd_syno::int, status, gbif_key, source::int FROM a JOIN tax_rank t ON a.name_rank=t.rank_name)  INSERT INTO taxon(name,name_auth,auth,tax_rank,cd_sup,cd_syno,status, gbifkey, source) SELECT * FROM b RETURNING cd_tax"
     cursor.execute(SQL,(tax.get('name'), tax.get('name_auth'), tax.get('auth'), tax.get('tax_rank_name'),tax.get('status'), tax.get('gbifkey'),tax.get('source'),idParent,idSyno))
     idInserted, = cursor.fetchone()
     return idInserted
     
-    
-# TODO : since panda does not simplify particularly the method to write a table in the postgres database, it would be better to remove all the panda dependency and keep only dictionaries...
-# if the direct parent is not in the database
-# testing its presence in gbif
-# formatting in a way that keep only the parent which are not in the database
-# inserting in the database one by one with a returning clause which gives the ID to be used in the following descendant...
-# using the same kind of returning clause to get the accepted id from the thing
-# in all the inserting into taxon clause, it would be possible as well to use a with clause in order to create a recursing with pseudo-table and avoid temporary table...
-
 def manageInputTax(**inputTax):
+    """
+    Master function which organizes all the other functions running for recognizing, and inserting taxa in the databases (with their corresponding accepted and parent taxa)
+    TODO: 
+    ---------
+        1. pass the connection as a parameter instead of creating it inside the function
+        2. adding an "insert" parameter in order to choose whether the function inserts the taxa or just try to recognize them through the database and the GBIF API
+        3. Modify the function in order to give more information about taxon (taxa) which are inserted and/or recognized
+    
+    Parameters
+    ------------
+    inputTax: dict
+        dictionary containing all the information provided by the user about the taxon
+    
+    Returns
+    ------------
+    cd_tax of the accepted taxon
+    """
     conn = psycopg2.connect(DATABASE_URL, sslmode='require')
     syno = False
     inputTax.update(test_taxInDb(connection=conn,**inputTax))
@@ -336,4 +667,3 @@ def manageInputTax(**inputTax):
         accId = acceptedId(connection=conn,cd_tax=inputTax.get('cdTax'))
         conn.close()
     return accId
-
