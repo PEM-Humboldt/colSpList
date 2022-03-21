@@ -6,3 +6,5 @@ flask
 gunicorn
 webargs
 fuzzywuzzy
+itsdangerous
+python-Levenshtein

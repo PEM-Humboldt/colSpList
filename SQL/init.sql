@@ -200,6 +200,17 @@ CREATE TABLE ref_threat
     UNIQUE (cd_ref, cd_tax)
 );
 
+-----------------------------------------
+/* Security and users */
+CREATE TABLE users
+(
+    id serial PRIMARY KEY,
+    username varchar(100) UNIQUE,
+    password_hash varchar(128),
+    admin boolean DEFAULT FALSE,
+    edit_auth boolean DEFAULT FALSE
+);
+------------------------------------------
 
 CREATE VIEW exotList AS(
     SELECT 

@@ -4,6 +4,7 @@ from taxo import manageInputTax
 from manageStatus import manageInputThreat
 from manageStatus import manageInputEndem
 from manageStatus import manageInputExot
+from security import new_user
 from getStatus import testEndemStatus
 from getStatus import testExotStatus
 from getStatus import testThreatStatus
@@ -12,12 +13,16 @@ from webargs.flaskparser import parser
 from webargs.flaskparser import use_args,use_kwargs,abort
 import psycopg2
 import os
+
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
+
 
 taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False), 'authorship':fields.Str(required=False), 'syno':fields.Bool(required=False), 'rank': fields.Str(required=False), 'parentgbifkey':fields.Int(required=False), 'parentcanonicalname':fields.Str(required=False), 'parentscientificname':fields.Str(required=False), 'synogbifkey':fields.Int(required=False), 'synocanonicalname':fields.Str(required=False), 'synoscientificname':fields.Str(required=False) }
 
 # TODO: check, for link, how to authorize some of the element of a list to be None and how to force the link and ref_citation to be of the same size
+
+newUserArgs = {'username':fields.Str(required=False), 'password':fields.Str(required=False)}
 
 inputThreatArgs={'threatstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)}
 inputThreatArgs.update(taxInputArgs)
@@ -28,6 +33,19 @@ inputEndemArgs.update(taxInputArgs)
 
 inputExotArgs={'is_alien':fields.Bool(required=True), 'is_invasive': fields.Bool(required=True), 'occ_observed': fields.Bool(required=False),'cryptogenic': fields.Bool(required=False), 'ref_citation':fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(),required=False), 'comments': fields.Str(required=False)}
 inputExotArgs.update(taxInputArgs)
+
+# security
+class User(Resource):
+    @use_kwargs(newUserArgs,location="query")
+    @use_kwargs(newUserArgs,location="json")
+    def post(self, **userArgs):
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        newId, username = new_user(conn,**userArgs)
+        return {'newId': newId, 'username': username}
+    
+    def delete(self,**userArgs):
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        delId, delUsername = del_user(conn,**userArgs)
 
 
 class testEndem(Resource):

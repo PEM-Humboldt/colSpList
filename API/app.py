@@ -10,6 +10,7 @@ from endpoint_def import insertEndem
 from endpoint_def import insertExot
 from endpoint_def import insertThreat
 from endpoint_def import insertTaxo
+from endpoint_def import User
 PYTHONIOENCODING="UTF-8"
 
 
@@ -21,6 +22,7 @@ api = Api(app)
 def mainPage():
     return(app.send_static_file("home.html"))
 
+api.add_resource(User,'/users')
 api.add_resource(insertTaxo, '/insertTaxo')
 api.add_resource(testEndem, '/testEndem')
 api.add_resource(testExot, '/testExot')
