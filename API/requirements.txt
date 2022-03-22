@@ -8,3 +8,4 @@ webargs
 fuzzywuzzy
 itsdangerous
 python-Levenshtein
+flask_httpauth

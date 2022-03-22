@@ -1,21 +1,64 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, g
 from flask_restful import Resource, Api
 from taxo import manageInputTax
+from itsdangerous import (TimedJSONWebSignatureSerializer                          as Serializer, BadSignature, SignatureExpired)
 from manageStatus import manageInputThreat
 from manageStatus import manageInputEndem
 from manageStatus import manageInputExot
 from security import new_user
+from security import delete_user
+from security import valid_password
+from security import user_exists
+from security import get_user
+from security import user_from_id
+from security import get_secret_key
+from security import generate_auth_token
+from security import testProtectedFun
 from getStatus import testEndemStatus
 from getStatus import testExotStatus
 from getStatus import testThreatStatus
 from webargs import fields, validate,missing
 from webargs.flaskparser import parser
 from webargs.flaskparser import use_args,use_kwargs,abort
+from flask_httpauth import HTTPBasicAuth
 import psycopg2
+import psycopg2.extras
 import os
 
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
+auth=HTTPBasicAuth()
+
+def verify_auth_token(token,cur):
+    sc=get_secret_key(cur)
+    s = Serializer(sc)
+    try:
+        data = s.loads(token)
+    except SignatureExpired:
+        return None # valid token, but expired
+    except BadSignature:
+        return None # invalid token
+    user=user_from_id(cur,data['id'])
+    return user
+
+@auth.verify_password
+def verify_password(username,password):
+    conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+    cur=conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    user=verify_auth_token(username,cur)
+    res = user is not None
+    if not res:
+        if user_exists(cur,username):
+            res = valid_password(cur,username,password)
+            if res:
+                user = get_user(cur,username)
+        else:
+            res = False
+    g.user=user
+    cur.close()
+    conn.close()
+    return res
+
 
 
 taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False), 'authorship':fields.Str(required=False), 'syno':fields.Bool(required=False), 'rank': fields.Str(required=False), 'parentgbifkey':fields.Int(required=False), 'parentcanonicalname':fields.Str(required=False), 'parentscientificname':fields.Str(required=False), 'synogbifkey':fields.Int(required=False), 'synocanonicalname':fields.Str(required=False), 'synoscientificname':fields.Str(required=False) }
@@ -41,12 +84,35 @@ class User(Resource):
     def post(self, **userArgs):
         conn=psycopg2.connect(DATABASE_URL, sslmode='require')
         newId, username = new_user(conn,**userArgs)
+        conn.close()
         return {'newId': newId, 'username': username}
     
+    @use_kwargs(newUserArgs,location="query")
+    @use_kwargs(newUserArgs,location="json")
     def delete(self,**userArgs):
         conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-        delId, delUsername = del_user(conn,**userArgs)
+        delId, delUsername = delete_user(conn,**userArgs)
+        conn.close()
+        return {'delId':delId, 'delUsername': delUsername}
 
+class token(Resource):
+    @auth.login_required
+    def get(self):
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        token = generate_auth_token(conn,g.user.get('id'))
+        #user = dict(g.user)
+        conn.close()
+        #return(user)
+        return {'token': token.decode('ascii')}
+
+
+class testProt(Resource):
+    @auth.login_required
+    def get(self):
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        nbTax = testProtectedFun(conn)
+        conn.close()
+        return {'user':g.user.get('username'), 'numTax':nbTax}
 
 class testEndem(Resource):
     @use_kwargs(taxInputArgs,location="query")

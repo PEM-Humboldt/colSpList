@@ -1,0 +1,6 @@
+CREATE TABLE secret
+(
+    secret_key text
+);
+INSERT INTO secret
+VALUES ('G\x9c\xd1\x91D\xf9\x83\xfa\xac\x85p\xae\x9e\xbcd\xb5\xda\xe1\xabj\x84\r"[');
