@@ -29,10 +29,13 @@ inputEndemArgs.update(taxInputArgs)
 inputExotArgs={'is_alien':fields.Bool(required=True), 'is_invasive': fields.Bool(required=True), 'occ_observed': fields.Bool(required=False),'cryptogenic': fields.Bool(required=False), 'ref_citation':fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(),required=False), 'comments': fields.Str(required=False)}
 inputExotArgs.update(taxInputArgs)
 
+
+# Note: this is a test...
 class testEnvVariable(Resource):
     def get(self):
         var=os.environ['TEST_ENV']
         return {'test_env':var}
+#
 
 class testEndem(Resource):
     @use_kwargs(taxInputArgs,location="query")
