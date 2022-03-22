@@ -10,6 +10,7 @@ from endpoint_def import insertEndem
 from endpoint_def import insertExot
 from endpoint_def import insertThreat
 from endpoint_def import insertTaxo
+from endpoint_def import testEnvVariable
 PYTHONIOENCODING="UTF-8"
 
 
@@ -28,6 +29,7 @@ api.add_resource(testThreat, '/testThreat')
 api.add_resource(insertEndem, '/insertEndem')
 api.add_resource(insertExot, '/insertExot')
 api.add_resource(insertThreat, '/insertThreat')
+api.add_resource(testEnvVariable, '/testEnv')
 
 if __name__ == "__main__":
     app.run()
