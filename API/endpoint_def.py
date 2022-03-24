@@ -2,21 +2,9 @@ from flask import Flask, render_template, jsonify, g
 from flask_restful import Resource, Api
 from taxo import manageInputTax
 from itsdangerous import (TimedJSONWebSignatureSerializer                          as Serializer, BadSignature, SignatureExpired)
-from manageStatus import manageInputThreat
-from manageStatus import manageInputEndem
-from manageStatus import manageInputExot
-from security import new_user
-from security import delete_user
-from security import valid_password
-from security import user_exists
-from security import get_user
-from security import user_from_id
-from security import get_secret_key
-from security import generate_auth_token
-from security import testProtectedFun
-from getStatus import testEndemStatus
-from getStatus import testExotStatus
-from getStatus import testThreatStatus
+from security import new_user, delete_user, valid_password, user_exists, get_user, generate_auth_token, verify_auth_token, grant_user, revoke_user, grant_edit, revoke_edit, grant_admin, revoke_admin,change_password, get_user_list
+from manageStatus import manageInputThreat, manageInputEndem, manageInputExot
+from getStatus import testEndemStatus, testExotStatus, testThreatStatus
 from webargs import fields, validate,missing
 from webargs.flaskparser import parser
 from webargs.flaskparser import use_args,use_kwargs,abort
@@ -29,17 +17,7 @@ DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 auth=HTTPBasicAuth()
 
-def verify_auth_token(token,cur):
-    sc=get_secret_key(cur)
-    s = Serializer(sc)
-    try:
-        data = s.loads(token)
-    except SignatureExpired:
-        return None # valid token, but expired
-    except BadSignature:
-        return None # invalid token
-    user=user_from_id(cur,data['id'])
-    return user
+
 
 @auth.verify_password
 def verify_password(username,password):
@@ -47,11 +25,14 @@ def verify_password(username,password):
     cur=conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     user=verify_auth_token(username,cur)
     res = user is not None
-    if not res:
+    if res:
+        user['authenticatedThrough']='Token'
+    else:
         if user_exists(cur,username):
             res = valid_password(cur,username,password)
             if res:
-                user = get_user(cur,username)
+                user = get_user(cur,get_hash=False,username=username)
+                user['authenticatedThrough']='username/password'
         else:
             res = False
     g.user=user
@@ -59,6 +40,12 @@ def verify_password(username,password):
     conn.close()
     return res
 
+@auth.get_user_roles
+def get_roles(authenticated):
+    if not authenticated:
+        raise Exception("User was not authenticated, no role can be determined")
+    return g.user.get('roles')
+    
 
 
 taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False), 'authorship':fields.Str(required=False), 'syno':fields.Bool(required=False), 'rank': fields.Str(required=False), 'parentgbifkey':fields.Int(required=False), 'parentcanonicalname':fields.Str(required=False), 'parentscientificname':fields.Str(required=False), 'synogbifkey':fields.Int(required=False), 'synocanonicalname':fields.Str(required=False), 'synoscientificname':fields.Str(required=False) }
@@ -66,6 +53,11 @@ taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.St
 # TODO: check, for link, how to authorize some of the element of a list to be None and how to force the link and ref_citation to be of the same size
 
 newUserArgs = {'username':fields.Str(required=False), 'password':fields.Str(required=False)}
+
+modifyUserAdminArgs={'grant_user':fields.Bool(required=False),'grant_edit':fields.Bool(required=False),'grant_admin':fields.Bool(required=False),'revoke_user':fields.Bool(required=False),'revoke_edit':fields.Bool(required=False),'revoke_admin':fields.Bool(required=False),'newPassword':fields.Str(required=False)}
+modifyUserAdminArgs.update(newUserArgs)
+
+modifyPw={'newPassword':fields.Str(required=True)}
 
 inputThreatArgs={'threatstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)}
 inputThreatArgs.update(taxInputArgs)
@@ -77,8 +69,21 @@ inputEndemArgs.update(taxInputArgs)
 inputExotArgs={'is_alien':fields.Bool(required=True), 'is_invasive': fields.Bool(required=True), 'occ_observed': fields.Bool(required=False),'cryptogenic': fields.Bool(required=False), 'ref_citation':fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(),required=False), 'comments': fields.Str(required=False)}
 inputExotArgs.update(taxInputArgs)
 
+testArgs={'go_further':fields.Bool(required=False)}
+
 # security
 class User(Resource):
+    @auth.login_required
+    def get(self):
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        token = generate_auth_token(conn,g.user.get('id')).decode('ascii')
+        user=g.get('user')
+        user['token']=token
+        #user = dict(g.user)
+        conn.close()
+        #return(user)
+        return user
+    
     @use_kwargs(newUserArgs,location="query")
     @use_kwargs(newUserArgs,location="json")
     def post(self, **userArgs):
@@ -87,6 +92,34 @@ class User(Resource):
         conn.close()
         return {'newId': newId, 'username': username}
     
+    @auth.login_required
+    def delete(self):
+        user=g.get('user')
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        cur=conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        delId, delUsername = delete_user(conn,**user)
+        conn.commit()
+        cur.close()
+        conn.close()
+        return uid
+    
+    @use_kwargs(modifyPw,location="json")
+    @auth.login_required
+    def put(self,**newPassword):
+        user=g.get('user')
+        user.update(newPassword)
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        cur=conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        uid = change_password(cur,**user)
+        conn.commit()
+        cur.close()
+        conn.close()
+        return uid
+    
+  
+    
+class AdminUsers(Resource):
+    @auth.login_required(role='admin')
     @use_kwargs(newUserArgs,location="query")
     @use_kwargs(newUserArgs,location="json")
     def delete(self,**userArgs):
@@ -94,7 +127,43 @@ class User(Resource):
         delId, delUsername = delete_user(conn,**userArgs)
         conn.close()
         return {'delId':delId, 'delUsername': delUsername}
+    
+    @auth.login_required(role='admin')
+    def get(self):
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        cur=conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        user_list=get_user_list(cur)
+        cur.close()
+        conn.close()
+        return user_list
+    
+    @auth.login_required(role='admin')
+    @use_kwargs(modifyUserAdminArgs,location="query")
+    @use_kwargs(modifyUserAdminArgs,location="json")
+    def put(self,**modifyArgs):
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        cur=conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        res=dict()
+        if modifyArgs.get('grant_user'):
+            res.update({'grant_user':grant_user(cur,**modifyArgs)})
+        if modifyArgs.get('grant_edit'):
+            res.update({'grant_edit':grant_edit(cur,**modifyArgs)})
+        if modifyArgs.get('grant_admin'):
+            res.update({'grant_admin':grant_admin(cur,**modifyArgs)})
+        if modifyArgs.get('revoke_user'):
+            res.update({'revoke_user':revoke_user(cur,**modifyArgs)})
+        if modifyArgs.get('revoke_edit'):
+            res.update({'revoke_edit':revoke_edit(cur,**modifyArgs)})
+        if modifyArgs.get('revoke_admin'):
+            res.update({'revoke_admin':revoke_admin(cur,**modifyArgs)})
+        if modifyArgs.get('newPassword'):
+            res.append({'newPassword':change_password(cur,**modifyArgs)})
+        conn.commit()
+        cur.close()
+        conn.close()
+        return res
 
+"""
 class token(Resource):
     @auth.login_required
     def get(self):
@@ -104,15 +173,30 @@ class token(Resource):
         conn.close()
         #return(user)
         return {'token': token.decode('ascii')}
+"""
 
-
-class testProt(Resource):
-    @auth.login_required
+class testUserWithoutLogin(Resource):
     def get(self):
+        if g.get('user') is not None:
+            res=g.get('user')
+        else:
+            res={'message': 'no user provided'}
+        return res
+"""
+class testProt(Resource):
+    @use_kwargs(testArgs,location="query")
+    @use_kwargs(testArgs,location="json")
+    def get(self,**testArgs):
         conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-        nbTax = testProtectedFun(conn)
+        res=dict()
+        res['nbTax']= testProtectedFun(conn)
+        if testArgs.get('go_further'):
+            @auth.login_required()
+        if testArgs.get('go_further')    
+        res['user']=g.user.get('username')
         conn.close()
-        return {'user':g.user.get('username'), 'numTax':nbTax}
+        return res
+"""
 
 class testEndem(Resource):
     @use_kwargs(taxInputArgs,location="query")
