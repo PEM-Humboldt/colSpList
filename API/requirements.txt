@@ -9,3 +9,4 @@ fuzzywuzzy
 python-Levenshtein
 flask_httpauth
 itsdangerous == 2.0.1
+passlib
