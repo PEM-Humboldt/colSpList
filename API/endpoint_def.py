@@ -167,6 +167,13 @@ class testUserWithoutLogin(Resource):
             res={'message': 'no user provided'}
         return res
 
+# Note: this is a test...
+class testEnvVariable(Resource):
+    def get(self):
+        var=os.environ['TEST_ENV']
+        return {'test_env':var}
+#
+
 class testEndem(Resource):
     @use_kwargs(taxInputArgs,location="query")
     @use_kwargs(taxInputArgs,location="json")
