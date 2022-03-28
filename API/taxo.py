@@ -145,6 +145,64 @@ def get_gbif_synonyms(gbifkey: int):
     content = response.json()
     return content
 
+def get_db_directParent(connection,cd_tax):
+    """
+    Retrieve direct parent information in the database
+    
+    Parameters
+    -----------
+    connection: postgres connection
+        connection to the postgres database
+    cd_tax: int
+        identificador de la especie en la base de datos
+    Returns
+    -----------
+    parent: dict
+        dictionary with the following elements:
+        cd_tax: int 
+            Identificator of the parent taxon
+        scientificname
+            Scientific name (with authorship) of the parent taxon
+    """
+    cur=connection.cursor()
+    SQL = "WITH parent AS(SELECT cd_sup FROM taxon WHERE cd_tax=%s) SELECT cd_tax,name_auth FROM taxon WHERE cd_tax = (SELECT cd_sup FROM parent)"
+    cur.execute(SQL,[cd_tax])
+    res = cur.fetchone()
+    cur.close()
+    return {'cd_tax':res[0], 'scientificname':res[1]}
+
+def get_db_tax(connection, cd_tax):
+    """
+    Retrieve taxon information in the database
+    
+    Parameters
+    -----------
+    connection: postgres connection
+        connection to the postgres database
+    cd_tax: int
+        identificador de la especie en la base de datos
+    Returns
+    -----------
+    taxon: dict
+        dictionary with the following elements:
+        cd_tax: int 
+            Identificator of the parent taxon
+        scientificname
+            Scientific name (with authorship) of the taxon
+        canonicalname
+            Canonical name (without authorship) of the taxon
+        syno: Bool
+            Is the taxon a synonym?
+        gbifkey: Int 
+            Identificator of the taxon in GBIF
+    """
+    cur= connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    SQL = "SELECT cd_tax, name_auth AS scientificname, name AS canonicalname, status = 'SYNONYM' AS syno, gbifkey FROM taxon WHERE cd_tax=%s"
+    cur.execute(SQL,[cd_tax])
+    taxon=dict(cur.fetchone())
+    cur.close()
+    return taxon
+
 def test_taxInDb(connection,**kwargs):
     """
     Test whether a taxon is already in the database. It is done first by looking for a gbifkey of the taxon, then by looking for its scientific name (if there is no gbifkey supplied) and finally the canonical name of the taxon (if no gbifkey or scientificname are supplied
@@ -198,6 +256,7 @@ def test_taxInDb(connection,**kwargs):
         SQL = "SELECT count(*) AS nb FROM taxon WHERE gbifkey = %s"
         cur.execute(SQL, [kwargs.get('gbifkey')])
         gbifKeyInDb_nb, = cur.fetchone()
+        gbifMatchMode = 'gbifkey'
         if (gbifKeyInDb_nb == 1):
             if(kwargs.get('canonicalname') is not None):
                 SQL = "SELECT name FROM taxon WHERE gbifkey = %s"
@@ -211,13 +270,14 @@ def test_taxInDb(connection,**kwargs):
             cur.execute(SQL,[kwargs.get('gbifkey')])
             cdTax,  = cur.fetchone()
         elif (gbifKeyInDb_nb == 0):
-            gbifMatchMode = 'gbifkey'
+            None
         else :
             raise Exception("gbifkey more than once in the database, should not be possible!")
     elif (kwargs.get('scientificname') is not None):
         SQL = "SELECT count(*) AS nb FROM taxon WHERE name_auth = %s"
         cur.execute(SQL,[kwargs.get('scientificname')])
         gbifSciInDb_nb, = cur.fetchone()
+        gbifMatchMode = 'scientificname'
         if (gbifSciInDb_nb == 1):
             alreadyInDb = True
             SQL = "SELECT cd_tax FROM taxon WHERE name_auth = %s"
@@ -225,13 +285,13 @@ def test_taxInDb(connection,**kwargs):
             cdTax,  = cur.fetchone()
         elif (gbifSciInDb_nb == 0):
             infoTax = get_gbif_tax_from_sci_name(kwargs.get('scientificname'))
-            gbifMatchMode = 'scientificname'
         else:
             raise Exception("Name (with author) in the database more than once, should not be possible!")
     elif (kwargs.get('canonicalname') is not None):
         SQL = "SELECT count(*) AS nb FROM taxon WHERE name =%s"
         cur.execute(SQL,[kwargs.get('canonicalname')])
         gbifNameInDb_nb, = cur.fetchone()
+        gbifMatchMode = 'canonicalname'
         if (gbifNameInDb_nb == 1):
             alreadyInDb = True
             SQL = "SELECT cd_tax FROM taxon WHERE name = %s"
@@ -239,7 +299,6 @@ def test_taxInDb(connection,**kwargs):
             cdTax, = cur.fetchone()
         elif (gbifNameInDb_nb == 0):
             infoTax = get_gbif_tax_from_name(kwargs.get('canonicalname'))
-            gbifMatchMode = 'canonicalname'
         else:
             raise Exception("Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to")
     else:
@@ -566,26 +625,52 @@ def insertTax(cursor,idParent,idSyno,**tax):
     idInserted, = cursor.fetchone()
     return idInserted
     
-def manageInputTax(**inputTax):
+def manageInputTax(insert, **inputTax):
     """
     Master function which organizes all the other functions running for recognizing, and inserting taxa in the databases (with their corresponding accepted and parent taxa)
     TODO: 
     ---------
         1. pass the connection as a parameter instead of creating it inside the function
-        2. adding an "insert" parameter in order to choose whether the function inserts the taxa or just try to recognize them through the database and the GBIF API
-        3. Modify the function in order to give more information about taxon (taxa) which are inserted and/or recognized
-    
+        
     Parameters
     ------------
+    insert: Bool
+        Whether the insertion of taxa which are not in the database should be done or not
     inputTax: dict
         dictionary containing all the information provided by the user about the taxon
     
     Returns
     ------------
-    cd_tax of the accepted taxon
+    taxon: Dict
+        Dictonary with the following elements:
+            cd_tax: int
+                identificator of the taxon in the database
+            cd_tax_acc: int 
+                identificator of the accepted taxon in the datase
+            alreadyInDb: Bool
+                ¿Was the taxon already in the database?
+            foundGbif: Bool
+                ¿ Is the taxon found in GBIF?
+            matchedname: Str 
+                Name of the taxon which has been matched against (in Gbif or the local database) input information (canonicalname if the taxon was retrieved by canonicalname, scientificname otherwise)
+            acceptedname: Str
+                Accepted scientificname (different to matchedname if the input taxon is a synonym)
+            gbifkey: int
+                identificator of the taxon in the gbif backbone
+            syno: Bool
+                Is the taxon a synonynm
+            insertedTax: List(Int):
+                List of inserted taxon (the accepted taxon itself, but also the parents and synonyms if needed)
     """
     conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    insertedTax = list()
+    res = {'cd_tax': 0, 'cd_tax_acc': 0 ,'alreadyInDb':False, 'foundGbif': False, 'matchedname': None, 'acceptedname':None, 'gbifkey':None,'syno':None, 'insertedTax': insertedTax}
+    
+    """
+    -------------Searching for the information-------------------------
+    """
     syno = False
+    # First check : is the taxon in the database
     inputTax.update(test_taxInDb(connection=conn,**inputTax))
     if (not inputTax.get('alreadyInDb')):
         inputTax.update(get_infoTax(**inputTax))
@@ -595,18 +680,21 @@ def manageInputTax(**inputTax):
             recheck = test_taxInDb(connection=conn,gbifkey=inputTax.get('key'))
             inputTax['alreadyInDb']=recheck.get('alreadyInDb')
             inputTax['cdTax'] = recheck.get('cdTax')
+    # Not in the database
     if (not inputTax.get('alreadyInDb')):
-        # synonyms
-        if(inputTax.get('foundGbif') and inputTax.get('synonym')): # synonym found through gbif, note: all synonym info from the arguments (positive, negative, precise or not) in the function will not be considered... GBIF being our backbone here!
+        # synonyms from GBIF
+        if(inputTax.get('foundGbif') and inputTax.get('synonym')): # synonym found through gbif, note: all synonym and/or parent information from the arguments (positive, negative, precise or not) in the function will be overrided: GBIF takes priority
             syno = True
             inputTax['syno'] = True
             acceptedTax = {'gbifkey':inputTax.get('acceptedUsageKey'),'scientificname': inputTax.get('accepted')}
             if acceptedTax.get('gbifkey') is None:
                 acceptedTax['gbifkey']=inputTax.get('acceptedKey')
+        # synonyms for taxa not found in GBIF
         if(not inputTax.get('foundGbif') and (inputTax.get('synogbifkey') is not None or inputTax.get('synoscientificname') is not None or inputTax.get('synocanonicalname') is not None)):
             syno = True
             inputTax['syno'] = True
             acceptedTax = {'gbifkey': inputTax.get('synogbifkey'), 'scientificname': inputTax.get('synoscientificname'), 'canonicalname': inputTax.get('synocanonicalname')}
+        # 
         if(syno): 
             acceptedTax.update(test_taxInDb(connection=conn,**acceptedTax))
             if(not acceptedTax.get('alreadyInDb')):
@@ -615,12 +703,13 @@ def manageInputTax(**inputTax):
                 recheckAccepted = test_taxInDb(connection=conn,gbifkey=acceptedTax.get('key'))
                 acceptedTax['alreadyInDb'] = recheckAccepted.get('alreadyInDb')
                 acceptedTax['cdTax'] = recheckAccepted.get('cdTax')
-        # The smart  move I think would be to manage formats (taxa recognized or not by gbif) here in order to:
-        # - get the ranks
-        # - get the simplified versions of taxa before going to parents
-        # - change the names of dictionaries in order to get the "accepted" taxon in one variable, synonyms or not, recognized by gbif or not
-            if(not acceptedTax.get('alreadyInDb')):
-                if(acceptedTax.get('foundGbif')):
+    """
+    ----------------Formatting the taxon information for insertion-------------------------------
+    """
+    if insert and not inputTax.get('alreadyInDb'):
+        if syno:
+            if not acceptedTax.get('alreadyInDb'):
+                if acceptedTax.get('foundGbif'):
                     accepted, parentTax = format_gbif_tax(connection=conn, **acceptedTax)
                 else:
                     accepted, parentTax = format_inputTax(connection=conn, **acceptedTax)
@@ -648,22 +737,70 @@ def manageInputTax(**inputTax):
             else:
                 parents = get_gbif_parent(accepted.get('gbifkey'))
             idParentInDb, parentsFormatted = format_parents(conn,parents)
+        """
+        ---------------------- Inserting the information in the database ---------------------------------
+        """
         with conn:
             with conn.cursor() as cur:
                 if(not parentTax.get('alreadyInDb')):
                     for i in range(0,len(parentsFormatted)):
                         idParentInDb = insertTax(cur,idParentInDb,None,**parentsFormatted[i])
+                        insertedTax.append(idParentInDb)
                 else:
                     idParentInDb=parentTax.get('cdTax')
                 if(syno and acceptedTax.get('alreadyInDb')):
                     accId=acceptedTax.get('cdTax')
                 else:
                     accId=insertTax(cur,idParentInDb,idSyno=None,**accepted)
+                    insertedTax.append(accId)
                 if(syno):
-                    insertTax(cur, None, accId, **synonym)
+                    synoId=insertTax(cur, None, accId, **synonym)
+                    insertedTax.append(synoId)
         cur.close()
-        conn.close()
+    """
+    --------------------------Final formatting of the returned information ------------------------------
+    """
+    if inputTax.get('alreadyInDb'):
+        infoDb = get_db_tax(conn,inputTax.get('cdTax'))
+        if inputTax.get('gbifMatchMode') == 'canonicalname':
+            matchedname=infoDb.get('canonicalname')
+        else:
+            matchedname=infoDb.get('scientificname')
+        if infoDb.get('syno'):
+            infoDbAccepted = get_db_tax(conn,AcceptedId(conn,inputTax.get('cdTax')))
+            res.update({'cd_tax': infoDb.get('cd_tax'), 'cd_tax_acc': infoDbAccepted.get('cd_tax') ,'alreadyInDb':True, 'foundGbif': bool(infoDb.get('gbifkey')), 'matchedname': matchedname, 'acceptedname':infoDbAccepted.get('scientificname'), 'gbifkey':infoDb.get('gbifkey'),'syno':True, 'insertedTax': insertedTax})
+        else:
+            res.update({'cd_tax': infoDb.get('cd_tax'), 'cd_tax_acc': infoDb.get('cd_tax'), 'alreadyInDb':True, 'foundGbif': bool(infoDb.get('gbifkey')), 'matchedname': matchedname, 'acceptedname':infoDb.get('scientificname'), 'gbifkey':infoDb.get('gbifkey'),'syno':False, 'insertedTax':insertedTax})
     else:
-        accId = acceptedId(connection=conn,cd_tax=inputTax.get('cdTax'))
-        conn.close()
-    return accId
+        if insert and syno:
+            res.update({'cd_tax':synoId, 'cd_tax_acc': accId})
+        if insert and not syno:
+            res.update({'cd_tax':accId, 'cd_tax_acc': accId})
+        if inputTax.get('foundGbif'):
+            if inputTax.get('gbifMatchMode') == 'canonicalname':
+                matchedname = inputTax.get('canonicalName')
+            else:
+                matchedname = inputTax.get('scientificName')
+        res.update({'alreadyInDb': False, 'foundGbif':inputTax.get('foundGbif'), 'matchedname':matchedname,'syno':syno,'gbifkey':inputTax.get('key'),'insertedTax':insertedTax})
+        if syno:
+            if acceptedTax.get('alreadyInDb'):
+                infoDbAccepted = get_db_tax(conn,acceptedTax.get('cdTax'))
+                res.update({'acceptedname':infoDbAccepted.get('scientificname')})
+            else:
+                if acceptedTax.get('foundGbif'):
+                    res.update({'acceptedname': acceptedTax.get('scientificName')})
+                else:
+                    if acceptedTax.get('scientificname'):
+                        res.update({'acceptedname':acceptedTax.get('scientificname')})
+                    else:
+                        res.update({'acceptedname':acceptedTax.get('canonicalname')})
+        else:
+            if inputTax.get('scientificName'):
+                res.update({'acceptedname':acceptedTax.get('scientificName')})
+            elif inputTax.get('scientificname'):
+                res.update({'acceptedname':acceptedTax.get('scientificname')})
+            else:
+                res.update({'acceptedname':acceptedTax.get('canonicalname')})
+                    
+    conn.close()
+    return res
