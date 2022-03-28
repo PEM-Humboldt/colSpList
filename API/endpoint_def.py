@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify, g
 from flask_restful import Resource, Api
 from taxo import manageInputTax
-from itsdangerous import (TimedJSONWebSignatureSerializer                          as Serializer, BadSignature, SignatureExpired)
+from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
 from security import new_user, delete_user, valid_password, user_exists, get_user, generate_auth_token, verify_auth_token, grant_user, revoke_user, grant_edit, revoke_edit, grant_admin, revoke_admin,change_password, get_user_list
 from manageStatus import manageInputThreat, manageInputEndem, manageInputExot
 from getStatus import testEndemStatus, testExotStatus, testThreatStatus
@@ -203,8 +203,11 @@ class testEndem(Resource):
     @use_kwargs(taxInputArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cd_tax = manageInputTax(**inputArgs)
-        res = testEndemStatus(conn,cd_tax)
+        res = manageInputTax(insert=False,**inputArgs)
+        if res.get('alreadyInDb'):
+            res.update(testEndemStatus(conn,res.get('cd_tax_acc')))
+        else:
+            res.update({'hasEndemStatus':False,'cd_status':None,'comments':None,'references':list(),'links':list()})
         conn.close()
         return res
         
@@ -214,8 +217,11 @@ class testExot(Resource):
     @use_kwargs(taxInputArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cd_tax = manageInputTax(**inputArgs)
-        res = testExotStatus(conn,cd_tax)
+        res = manageInputTax(insert=False, **inputArgs)
+        if res.get('alreadyInDb'):
+            res.update(testExotStatus(conn,res.get('cd_tax_acc')))
+        else:
+            res.update({'hasExotStatus':False,'is_alien':None,'is_invasive':None,'comments':None,'references':list(),'links':list()})
         conn.close()
         return res
 
@@ -224,40 +230,47 @@ class testThreat(Resource):
     @use_kwargs(taxInputArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cd_tax = manageInputTax(**inputArgs)
-        res = testThreatStatus(conn,cd_tax)
+        res = manageInputTax(insert=False,**inputArgs)
+        if res.get('alreadyInDb'):
+            res.update(testThreatStatus(conn,res.get('cd_tax_acc')))
+        else:
+            res.update({'hasThreatStatus':False,'cd_status':None,'comments':None,'references':list(),'links':list()})
         conn.close()
         return res
 
 class insertEndem(Resource):
+    @auth.login_required(role='edit')
     @use_kwargs(inputEndemArgs)
     def post(self,**inputEndem):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cd_tax = manageInputTax(**inputEndem)
-        res = manageInputEndem(cd_tax, connection = conn, **inputEndem)
+        res = manageInputTax(insert=True,**inputEndem)
+        res.update(manageInputEndem(res.get('cd_tax_acc'), connection = conn, **inputEndem))
         return res
 
 class insertExot(Resource):
+    @auth.login_required(role='edit')
     @use_kwargs(inputExotArgs)
     def post(self, **inputExot):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cd_tax = manageInputTax(**inputExot)
-        res = manageInputExot(cd_tax, connection = conn, **inputExot)
+        res = manageInputTax(insert=True, **inputExot)
+        res.update(manageInputExot(res.get('cd_tax_acc'), connection = conn, **inputExot))
         return res
     
 class insertThreat(Resource):
+    @auth.login_required(role='edit')
     @use_kwargs(inputThreatArgs)
     def post(self, **inputThreat):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        cd_tax = manageInputTax(**inputThreat)
-        res = manageInputThreat(cd_tax, connection = conn, **inputThreat)
+        res = manageInputTax(insert=True,**inputThreat)
+        res.update(manageInputThreat(res.get('cd_tax_acc'), connection = conn, **inputThreat))
         conn.close()
         return res
 
 class insertTaxo(Resource):
+    @auth.login_required(role='edit')
     @use_kwargs(taxInputArgs)
     def post(self,**dictInput):
-        return manageInputTax(**dictInput)
+        return manageInputTax(insert=True,**dictInput)
 
     
 # This error handler is necessary for usage with Flask-RESTful
