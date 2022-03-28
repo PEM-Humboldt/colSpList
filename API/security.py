@@ -143,7 +143,7 @@ def change_password(cursor, **userArgs):
         raise Exception("Impossible to change the password without a new password")
     new_hash=hash_password(userArgs.get('newPassword'))
     SQL = "UPDATE users SET password_hash=%s WHERE id=%s RETURNING id"
-    cursor.execute(SQL,[user.get('id'),new_hash])
+    cursor.execute(SQL,[new_hash,user.get('id')])
     uidUpdated= cursor.fetchone()['id']
     return uidUpdated
 
