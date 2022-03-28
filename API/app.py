@@ -23,9 +23,6 @@ api.add_resource(testThreat, '/testThreat')
 api.add_resource(insertEndem, '/insertEndem')
 api.add_resource(insertExot, '/insertExot')
 api.add_resource(insertThreat, '/insertThreat')
-#api.add_resource(testProt, '/testProt')
-#api.add_resource(token, '/token')
-#api.add_resource(testUserWithoutLogin,'/test')
 api.add_resource(AdminUsers,'/admin/users')
 
 if __name__ == "__main__":

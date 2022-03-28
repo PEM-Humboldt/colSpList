@@ -69,8 +69,6 @@ inputEndemArgs.update(taxInputArgs)
 inputExotArgs={'is_alien':fields.Bool(required=True), 'is_invasive': fields.Bool(required=True), 'occ_observed': fields.Bool(required=False),'cryptogenic': fields.Bool(required=False), 'ref_citation':fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(),required=False), 'comments': fields.Str(required=False)}
 inputExotArgs.update(taxInputArgs)
 
-testArgs={'go_further':fields.Bool(required=False)}
-
 # security
 class User(Resource):
     @auth.login_required
@@ -115,8 +113,6 @@ class User(Resource):
         cur.close()
         conn.close()
         return uid
-    
-  
     
 class AdminUsers(Resource):
     @auth.login_required(role='admin')
@@ -163,18 +159,6 @@ class AdminUsers(Resource):
         conn.close()
         return res
 
-"""
-class token(Resource):
-    @auth.login_required
-    def get(self):
-        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-        token = generate_auth_token(conn,g.user.get('id'))
-        #user = dict(g.user)
-        conn.close()
-        #return(user)
-        return {'token': token.decode('ascii')}
-"""
-
 class testUserWithoutLogin(Resource):
     def get(self):
         if g.get('user') is not None:
@@ -182,21 +166,6 @@ class testUserWithoutLogin(Resource):
         else:
             res={'message': 'no user provided'}
         return res
-"""
-class testProt(Resource):
-    @use_kwargs(testArgs,location="query")
-    @use_kwargs(testArgs,location="json")
-    def get(self,**testArgs):
-        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-        res=dict()
-        res['nbTax']= testProtectedFun(conn)
-        if testArgs.get('go_further'):
-            @auth.login_required()
-        if testArgs.get('go_further')    
-        res['user']=g.user.get('username')
-        conn.close()
-        return res
-"""
 
 class testEndem(Resource):
     @use_kwargs(taxInputArgs,location="query")
@@ -210,7 +179,6 @@ class testEndem(Resource):
             res.update({'hasEndemStatus':False,'cd_status':None,'comments':None,'references':list(),'links':list()})
         conn.close()
         return res
-        
         
 class testExot(Resource):
     @use_kwargs(taxInputArgs,location="query")

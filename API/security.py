@@ -38,14 +38,6 @@ def get_user(cursor, get_hash=False, **user):
         user.update({"password_hash":res.get('password_hash')})
     return user
 
-"""
-def get_secret_key(cursor):
-    SQL = "SELECT secret_key FROM secret"
-    cursor.execute(SQL)
-    key = cursor.fetchone().get('secret_key')
-    return key
-"""
-
 def valid_password(cursor,username,password):
     user = get_user(cursor=cursor, get_hash=True, username=username)
     return pwd_context.verify(password, user.get('password_hash'))
@@ -86,7 +78,6 @@ def delete_user(connection, **userArgs):
     return res, username
 
 def grant_user(cursor, **userArgs):
-    #cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     user=get_user(cursor, get_hash=False, **userArgs)
     if 'user' in user.get('roles'):
         raise Exception("This user was already an API user")
@@ -97,7 +88,6 @@ def grant_user(cursor, **userArgs):
     return uidUpdated
 
 def revoke_user(cursor, **userArgs):
-    #cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     user=get_user(cursor, get_hash=False, **userArgs)
     if 'user' in user.get('roles'):
         raise Exception("This user was not an API user")
@@ -108,7 +98,6 @@ def revoke_user(cursor, **userArgs):
     return uidUpdated
 
 def grant_edit(cursor, **userArgs):
-    #cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     user=get_user(cursor, get_hash=False, **userArgs)
     if 'edit' in user.get('roles'):
         raise Exception("This user had already been granted edition rights")
@@ -119,7 +108,6 @@ def grant_edit(cursor, **userArgs):
     return uidUpdated
 
 def revoke_edit(cursor, **userArgs):
-    #cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     user=get_user(cursor, get_hash=False, **userArgs)
     if not 'edit' in user.get('roles'):
         raise Exception("This user had no edition rights")
@@ -130,7 +118,6 @@ def revoke_edit(cursor, **userArgs):
     return uidUpdated
 
 def grant_admin(cursor, **userArgs):
-    #cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     user=get_user(cursor, get_hash=False, **userArgs)
     if 'admin' in user.get('roles'):
         raise Exception("This user was already an API user")
@@ -141,7 +128,6 @@ def grant_admin(cursor, **userArgs):
     return uidUpdated
 
 def revoke_admin(cursor, **userArgs):
-    #cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     user=get_user(cursor, get_hash=False, **userArgs)
     if not 'admin' in user.get('roles'):
         raise Exception("This user was already an API user")
@@ -185,12 +171,3 @@ def get_user_list(cursor):
     cursor.execute(SQL)
     res=cursor.fetchall()
     return res
-"""
-def testProtectedFun(connection):
-    cur= connection.cursor()
-    SQL = "SELECT count(*) FROM taxon"
-    cur.execute(SQL)
-    nbTax, = cur.fetchone()
-    cur.close()
-    return nbTax
-"""
