@@ -804,3 +804,19 @@ def manageInputTax(insert, **inputTax):
                     
     conn.close()
     return res
+
+def childrenList(cursor,cd_tax):
+    foundMore = True
+    all_children=[cd_tax]
+    new_children = [cd_tax]
+    SQL = "SELECT cd_tax FROM taxon WHERE cd_sup IN (SELECT UNNEST( %s ))"
+    while foundMore:
+        cursor.execute(SQL,[new_children])
+        res=cursor.fetchall()
+        new_children = [r[0] for r in res]
+        all_children=all_children+new_children
+        if(len(new_children)==0):
+            foundMore=False
+    all_children.sort()
+    return all_children
+    

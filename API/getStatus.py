@@ -14,6 +14,7 @@ import psycopg2.extras
 from io import BytesIO
 from flask import send_file
 from fuzzywuzzy import fuzz
+import pandas as pd
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
@@ -211,3 +212,100 @@ def testThreatStatus(connection,cd_tax):
         res.update({'cd_status':None, 'comments': None, 'references': None, 'links': None})
     return res
 
+def getListExot(connection, listChildren, formatExport):
+    if len(listChildren)==0:
+        SQL="SELECT * FROM exot_list"
+        if formatExport=="CSV":
+             res = pd.read_sql_query(SQL, connection)
+        else:
+            cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(SQL)
+            res = cur.fetchall()
+            cur.close()
+    else:
+        SQL="SELECT * FROM exot_list WHERE cd_tax IN (SELECT UNNEST( %s ))"
+        if formatExport=="CSV":
+            cur=connection.cursor()
+            query=cur.mogrify(SQL,[listChildren])
+            cur.close()
+            res=pd.read_sql_query(query,connection)
+        else:
+            cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(SQL,[listChildren])
+            res = cur.fetchall()
+            cur.close()
+    return res
+        
+
+def getListEndem(connection, listChildren, formatExport):
+    if len(listChildren)==0:
+        SQL="SELECT * FROM endem"
+        if formatExport=="CSV":
+             res = pd.read_sql_query(SQL, connection)
+        else:
+            cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(SQL)
+            res = cur.fetchall()
+            cur.close()
+    else:
+        SQL="SELECT * FROM endem_list WHERE cd_tax IN (SELECT UNNEST( %s ))"
+        if formatExport=="CSV":
+            cur=connection.cursor()
+            query=cur.mogrify(SQL,[listChildren])
+            cur.close()
+            res=pd.read_sql_query(query,connection)
+        else:
+            cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(SQL,[listChildren])
+            res = cur.fetchall()
+            cur.close()
+    return res
+        
+
+def getListThreat(connection, listChildren, formatExport):
+    if len(listChildren)==0:
+        SQL="SELECT * FROM threat_list"
+        if formatExport=="CSV":
+             res = pd.read_sql_query(SQL, connection)
+        else:
+            cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(SQL)
+            res = cur.fetchall()
+            cur.close()
+    else:
+        SQL="SELECT * FROM threat_list WHERE cd_tax IN (SELECT UNNEST( %s ))"
+        if formatExport=="CSV":
+            cur=connection.cursor()
+            query=cur.mogrify(SQL,[listChildren])
+            cur.close()
+            res=pd.read_sql_query(query,connection)
+        else:
+            cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(SQL,[listChildren])
+            res = cur.fetchall()
+            cur.close()
+    return res
+        
+def getListTax(connection, listChildren, formatExport):
+    if len(listChildren)==0:
+        SQL="SELECT *  FROM tax_list"
+        if formatExport=="CSV":
+             res = pd.read_sql_query(SQL, connection)
+        else:
+            cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(SQL)
+            res = cur.fetchall()
+            cur.close()
+    else:
+        SQL="SELECT * FROM tax_list WHERE cd_tax IN (SELECT UNNEST( %s ))"
+        if formatExport=="CSV":
+            cur=connection.cursor()
+            query=cur.mogrify(SQL,[listChildren])
+            cur.close()
+            res=pd.read_sql_query(query,connection)
+        else:
+            cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(SQL,[listChildren])
+            res = cur.fetchall()
+            cur.close()
+    return res

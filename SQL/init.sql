@@ -201,26 +201,101 @@ CREATE TABLE ref_threat
 );
 
 
-CREATE VIEW exotList AS(
+CREATE OR REPLACE VIEW exot_list AS(
     SELECT 
-        t.name_auth,
+        t.cd_tax,
+        t.name_auth scientificname,
         t_par.name_auth parentname,
         t.tax_rank,
         t.gbifkey,
-        STRING_AGG (t_synos.name_auth, ' | ') synonyms,
+        ARRAY_AGG(DISTINCT t_synos.name_auth) synonyms,
         --ARRAY_AGG(t_synos.name_auth) synonyms_list,
         e.is_alien,
         e.is_invasive,
         --e.occ_observed,
         --e.cryptogenic,
         e.comments,
-        STRING_AGG(r.citation, ' | ' ORDER BY r.cd_ref) AS references,
-        STRING_AGG(r.link, ' | ' ORDER BY r.cd_ref) AS links 
+        ARRAY_AGG(r.cd_ref || ': '||r.citation ORDER BY r.cd_ref) AS "references", 
+        ARRAY_AGG(r.cd_ref || ': ' || r.link ORDER BY r.cd_ref) AS links 
     FROM exot e
     LEFT JOIN taxon t ON e.cd_tax=t.cd_tax
     LEFT JOIN taxon t_par ON t.cd_sup=t_par.cd_tax
     LEFT JOIN taxon t_synos ON t_synos.cd_syno=t.cd_tax
     LEFT JOIN ref_exot re ON e.cd_tax=re.cd_tax
     LEFT JOIN refer r ON re.cd_ref=r.cd_ref 
-    GROUP BY t.name_auth, t_par.name_auth,t.tax_rank,t.gbifkey,e.is_alien, e.is_invasive, /*e.occ_observed,e.cryptogenic,*/ e.comments
+    GROUP BY t.cd_tax, t.name_auth, t_par.name_auth,t.tax_rank,t.gbifkey,e.is_alien, e.is_invasive, /*e.occ_observed,e.cryptogenic,*/ e.comments
+);
+
+CREATE OR REPLACE VIEW endem_list AS(
+    SELECT 
+        t.cd_tax,
+        t.name_auth scientificname,
+        t_par.name_auth parentname,
+        t.tax_rank,
+        t.gbifkey,
+        ARRAY_AGG(DISTINCT t_synos.name_auth) synonyms,
+        --ARRAY_AGG(t_synos.name_auth) synonyms_list,
+        ne.descr_endem_es AS cd_status,
+        --e.occ_observed,
+        --e.cryptogenic,
+        e.comments,
+        ARRAY_AGG(r.cd_ref || ': '||r.citation ORDER BY r.cd_ref) AS "references", 
+        ARRAY_AGG(r.cd_ref || ': ' || r.link ORDER BY r.cd_ref) AS links 
+    FROM endemic e
+    LEFT JOIN nivel_endem ne USING (cd_nivel)
+    LEFT JOIN taxon t ON e.cd_tax=t.cd_tax
+    LEFT JOIN taxon t_par ON t.cd_sup=t_par.cd_tax
+    LEFT JOIN taxon t_synos ON t_synos.cd_syno=t.cd_tax
+    LEFT JOIN ref_endem re ON e.cd_tax=re.cd_tax
+    LEFT JOIN refer r ON re.cd_ref=r.cd_ref 
+    GROUP BY t.cd_tax, t.name_auth, t_par.name_auth,t.tax_rank,t.gbifkey,ne.descr_endem_es, /*e.occ_observed,e.cryptogenic,*/ e.comments
+);
+
+CREATE OR REPLACE VIEW threat_list AS(
+    SELECT 
+        t.cd_tax,
+        t.name_auth scientificname,
+        t_par.name_auth parentname,
+        t.tax_rank,
+        t.gbifkey,
+        ARRAY_AGG(DISTINCT t_synos.name_auth) synonyms,
+        --ARRAY_AGG(t_synos.name_auth) synonyms_list,
+        e.cd_status AS cd_status,
+        --e.occ_observed,
+        --e.cryptogenic,
+        e.comments,
+        ARRAY_AGG(r.cd_ref || ': '||r.citation ORDER BY r.cd_ref) AS "references", 
+        ARRAY_AGG(r.cd_ref || ': ' || r.link ORDER BY r.cd_ref) AS links 
+    FROM threat e
+    LEFT JOIN taxon t ON e.cd_tax=t.cd_tax
+    LEFT JOIN taxon t_par ON t.cd_sup=t_par.cd_tax
+    LEFT JOIN taxon t_synos ON t_synos.cd_syno=t.cd_tax
+    LEFT JOIN ref_threat re ON e.cd_tax=re.cd_tax
+    LEFT JOIN refer r ON re.cd_ref=r.cd_ref 
+    GROUP BY t.cd_tax, t.name_auth, t_par.name_auth,t.tax_rank,t.gbifkey,e.cd_status, /*e.occ_observed,e.cryptogenic,*/ e.comments
+);
+
+
+CREATE OR REPLACE VIEW tax_list AS(
+    SELECT 
+        t.cd_tax,
+        t.name_auth scientificname,
+        t.name canonicalname,
+        t.auth authorship,
+        t.tax_rank,
+        t.cd_sup cd_parent,
+        t_par.name_auth parentname,
+        t.cd_syno cd_accepted,
+        t_acc.name_auth acceptedname,
+        t.status,
+        t.gbifkey,
+        ARRAY_AGG(DISTINCT t_synos.name_auth) synonyms,
+        t.cd_tax IN (SELECT cd_tax FROM endemic) AS hasEndemStatus,
+        t.cd_tax IN (SELECT cd_tax FROM exot) AS hasExotStatus,
+        t.cd_tax IN (SELECT cd_tax FROM threat) AS hasThreatStatus
+    FROM taxon t
+    LEFT JOIN taxon t_par ON t.cd_sup=t_par.cd_tax
+    LEFT JOIN taxon t_synos ON t_synos.cd_syno=t.cd_tax
+    LEFT JOIN taxon t_acc ON t.cd_syno=t_acc.cd_tax
+    GROUP BY t.cd_tax, t.name_auth, t.name,t.auth,t.tax_rank,t.cd_sup,t_par.name_auth,t.cd_syno,t_acc.name_auth,t.status,t.gbifkey,t.cd_tax IN (SELECT cd_tax FROM endemic),t.cd_tax IN (SELECT cd_tax FROM exot),t.cd_tax IN (SELECT cd_tax FROM threat)
 );

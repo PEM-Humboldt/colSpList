@@ -1,10 +1,11 @@
-from flask import Flask, render_template, jsonify, g
+from io import BytesIO
+from flask import Flask, render_template, jsonify, g, send_file
 from flask_restful import Resource, Api
-from taxo import manageInputTax
+from taxo import manageInputTax, get_gbif_parsed_from_sci_name, childrenList
 from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
 from security import new_user, delete_user, valid_password, user_exists, get_user, generate_auth_token, verify_auth_token, grant_user, revoke_user, grant_edit, revoke_edit, grant_admin, revoke_admin,change_password, get_user_list
 from manageStatus import manageInputThreat, manageInputEndem, manageInputExot
-from getStatus import testEndemStatus, testExotStatus, testThreatStatus
+from getStatus import testEndemStatus, testExotStatus, testThreatStatus, getListExot, getListEndem, getListThreat, getListTax
 from webargs import fields, validate,missing
 from webargs.flaskparser import parser
 from webargs.flaskparser import use_args,use_kwargs,abort
@@ -46,7 +47,7 @@ def get_roles(authenticated):
         raise Exception("User was not authenticated, no role can be determined")
     return g.user.get('roles')
     
-
+getListArgs = {'childrenOf':fields.Str(required=False),'format':fields.Str(required=False)}
 
 taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False), 'authorship':fields.Str(required=False), 'syno':fields.Bool(required=False), 'rank': fields.Str(required=False), 'parentgbifkey':fields.Int(required=False), 'parentcanonicalname':fields.Str(required=False), 'parentscientificname':fields.Str(required=False), 'synogbifkey':fields.Int(required=False), 'synocanonicalname':fields.Str(required=False), 'synoscientificname':fields.Str(required=False) }
 
@@ -159,21 +160,6 @@ class AdminUsers(Resource):
         conn.close()
         return res
 
-class testUserWithoutLogin(Resource):
-    def get(self):
-        if g.get('user') is not None:
-            res=g.get('user')
-        else:
-            res={'message': 'no user provided'}
-        return res
-
-# Note: this is a test...
-class testEnvVariable(Resource):
-    def get(self):
-        var=os.environ['TEST_ENV']
-        return {'test_env':var}
-#
-
 class testEndem(Resource):
     @use_kwargs(taxInputArgs,location="query")
     @use_kwargs(taxInputArgs,location="json")
@@ -212,6 +198,114 @@ class testThreat(Resource):
             res.update({'hasThreatStatus':False,'cd_status':None,'comments':None,'references':list(),'links':list()})
         conn.close()
         return res
+
+class listExot(Resource):
+    @use_kwargs(getListArgs,location="query")
+    @use_kwargs(getListArgs,location="json")
+    def get(self, **listArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        if listArgs.get('childrenOf'):
+            parsed = get_gbif_parsed_from_sci_name(listArgs.get('childrenOf'))
+            if parsed.get('scientificName') and parsed.get('canonicalNameComplete') and parsed.get('scientificName')==parsed.get('canonicalNameComplete'):
+                parent=manageInputTax(insert=False,canonicalname=listArgs.get('childrenOf'))
+            else:
+                parent=manageInputTax(insert=False,scientificname=listArgs.get('childrenOf'))
+            if parent.get('alreadyInDb'):
+                cursor=conn.cursor()
+                listChildren=childrenList(cursor,parent.get('cd_tax_acc'))
+                cursor.close()
+                res=getListExot(connection=conn, listChildren=listChildren, formatExport=listArgs.get('format'))
+            else:
+                raise Exception("childrenOfNotFound")
+        else:
+            res = getListExot(connection=conn, listChildren=[], formatExport=listArgs.get('format'))
+        conn.close()
+        if listArgs.get('format')=="CSV":
+            response_stream = BytesIO(res.to_csv().encode())
+            return send_file(response_stream, mimetype = "text/csv", attachment_filename = "export.csv")
+        else:
+            return res
+            
+class listEndem(Resource):
+    @use_kwargs(getListArgs,location="query")
+    @use_kwargs(getListArgs,location="json")
+    def get(self, **listArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        if listArgs.get('childrenOf'):
+            parsed = get_gbif_parsed_from_sci_name(listArgs.get('childrenOf'))
+            if parsed.get('scientificName') and parsed.get('canonicalNameComplete') and parsed.get('scientificName')==parsed.get('canonicalNameComplete'):
+                parent=manageInputTax(insert=False,canonicalname=listArgs.get('childrenOf'))
+            else:
+                parent=manageInputTax(insert=False,scientificname=listArgs.get('childrenOf'))
+            if parent.get('alreadyInDb'):
+                cursor=conn.cursor()
+                listChildren=childrenList(cursor,parent.get('cd_tax_acc'))
+                cursor.close()
+                res=getListEndem(connection=conn, listChildren=listChildren, formatExport=listArgs.get('format'))
+            else:
+                raise Exception("childrenOfNotFound")
+        else:
+            res = getListEndem(connection=conn, listChildren=[], formatExport=listArgs.get('format'))
+        conn.close()
+        if listArgs.get('format')=="CSV":
+            response_stream = BytesIO(res.to_csv().encode())
+            return send_file(response_stream, mimetype = "text/csv", attachment_filename = "export.csv")
+        else:
+            return res
+
+class listThreat(Resource):
+    @use_kwargs(getListArgs,location="query")
+    @use_kwargs(getListArgs,location="json")
+    def get(self, **listArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        if listArgs.get('childrenOf'):
+            parsed = get_gbif_parsed_from_sci_name(listArgs.get('childrenOf'))
+            if parsed.get('scientificName') and parsed.get('canonicalNameComplete') and parsed.get('scientificName')==parsed.get('canonicalNameComplete'):
+                parent=manageInputTax(insert=False,canonicalname=listArgs.get('childrenOf'))
+            else:
+                parent=manageInputTax(insert=False,scientificname=listArgs.get('childrenOf'))
+            if parent.get('alreadyInDb'):
+                cursor=conn.cursor()
+                listChildren=childrenList(cursor,parent.get('cd_tax_acc'))
+                cursor.close()
+                res=getListThreat(connection=conn, listChildren=listChildren, formatExport=listArgs.get('format'))
+            else:
+                raise Exception("childrenOfNotFound")
+        else:
+            res = getListThreat(connection=conn, listChildren=[], formatExport=listArgs.get('format'))
+        conn.close()
+        if listArgs.get('format')=="CSV":
+            response_stream = BytesIO(res.to_csv().encode())
+            return send_file(response_stream, mimetype = "text/csv", attachment_filename = "export.csv")
+        else:
+            return res
+
+class listTax(Resource):
+    @use_kwargs(getListArgs,location="query")
+    @use_kwargs(getListArgs,location="json")
+    def get(self, **listArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        if listArgs.get('childrenOf'):
+            parsed = get_gbif_parsed_from_sci_name(listArgs.get('childrenOf'))
+            if parsed.get('scientificName') and parsed.get('canonicalNameComplete') and parsed.get('scientificName')==parsed.get('canonicalNameComplete'):
+                parent=manageInputTax(insert=False,canonicalname=listArgs.get('childrenOf'))
+            else:
+                parent=manageInputTax(insert=False,scientificname=listArgs.get('childrenOf'))
+            if parent.get('alreadyInDb'):
+                cursor=conn.cursor()
+                listChildren=childrenList(cursor,parent.get('cd_tax_acc'))
+                cursor.close()
+                res=getListTax(connection=conn, listChildren=listChildren, formatExport=listArgs.get('format'))
+            else:
+                raise Exception("childrenOfNotFound")
+        else:
+            res = getListTax(connection=conn, listChildren=[], formatExport=listArgs.get('format'))
+        conn.close()
+        if listArgs.get('format')=="CSV":
+            response_stream = BytesIO(res.to_csv().encode())
+            return send_file(response_stream, mimetype = "text/csv", attachment_filename = "export.csv")
+        else:
+            return res
 
 class insertEndem(Resource):
     @auth.login_required(role='edit')
