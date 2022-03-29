@@ -5,7 +5,7 @@ from taxo import manageInputTax, get_gbif_parsed_from_sci_name, childrenList
 from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
 from security import new_user, delete_user, valid_password, user_exists, get_user, generate_auth_token, verify_auth_token, grant_user, revoke_user, grant_edit, revoke_edit, grant_admin, revoke_admin,change_password, get_user_list
 from manageStatus import manageInputThreat, manageInputEndem, manageInputExot
-from getStatus import testEndemStatus, testExotStatus, testThreatStatus, getListExot, getListEndem, getListThreat, getListTax
+from getStatus import testEndemStatus, testExotStatus, testThreatStatus, getListExot, getListEndem, getListThreat, getListTax, getListReferences, getTax
 from webargs import fields, validate,missing
 from webargs.flaskparser import parser
 from webargs.flaskparser import use_args,use_kwargs,abort
@@ -48,6 +48,10 @@ def get_roles(authenticated):
     return g.user.get('roles')
     
 getListArgs = {'childrenOf':fields.Str(required=False),'format':fields.Str(required=False)}
+
+getListRefArgs = {'format':fields.Str(required=False), 'onlyEndem':fields.Bool(required=False),'onlyExot':fields.Bool(required=False),'onlyThreat':fields.Bool(required=False)}
+
+taxReconArgs = {'cd_tax': fields.Int(required=False), 'gbifkey': fields.Int(required=False), 'scientificname': fields.Str(required=False), 'canonicalname': fields.Str(required=False)}
 
 taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False), 'authorship':fields.Str(required=False), 'syno':fields.Bool(required=False), 'rank': fields.Str(required=False), 'parentgbifkey':fields.Int(required=False), 'parentcanonicalname':fields.Str(required=False), 'parentscientificname':fields.Str(required=False), 'synogbifkey':fields.Int(required=False), 'synocanonicalname':fields.Str(required=False), 'synoscientificname':fields.Str(required=False) }
 
@@ -160,12 +164,22 @@ class AdminUsers(Resource):
         conn.close()
         return res
 
+class getTaxon(Resource):
+    @use_kwargs(taxReconArgs,location="query")
+    @use_kwargs(taxReconArgs,location="json")
+    def get(self, **taxInput):
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        if not taxInput.get('cd_tax'):
+            taxInput.update(manageInputTax(connection=conn,insert=False,**taxInput))
+        taxOutput = getTax(conn,taxInput.get('cd_tax'))
+        return taxOutput
+
 class testEndem(Resource):
     @use_kwargs(taxInputArgs,location="query")
     @use_kwargs(taxInputArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        res = manageInputTax(insert=False,**inputArgs)
+        res = manageInputTax(connection=conn, insert=False, **inputArgs)
         if res.get('alreadyInDb'):
             res.update(testEndemStatus(conn,res.get('cd_tax_acc')))
         else:
@@ -178,7 +192,7 @@ class testExot(Resource):
     @use_kwargs(taxInputArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        res = manageInputTax(insert=False, **inputArgs)
+        res = manageInputTax(connection=conn, insert=False, **inputArgs)
         if res.get('alreadyInDb'):
             res.update(testExotStatus(conn,res.get('cd_tax_acc')))
         else:
@@ -191,7 +205,7 @@ class testThreat(Resource):
     @use_kwargs(taxInputArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        res = manageInputTax(insert=False,**inputArgs)
+        res = manageInputTax(connection=conn, insert=False,**inputArgs)
         if res.get('alreadyInDb'):
             res.update(testThreatStatus(conn,res.get('cd_tax_acc')))
         else:
@@ -207,9 +221,9 @@ class listExot(Resource):
         if listArgs.get('childrenOf'):
             parsed = get_gbif_parsed_from_sci_name(listArgs.get('childrenOf'))
             if parsed.get('scientificName') and parsed.get('canonicalNameComplete') and parsed.get('scientificName')==parsed.get('canonicalNameComplete'):
-                parent=manageInputTax(insert=False,canonicalname=listArgs.get('childrenOf'))
+                parent=manageInputTax(connection=conn, insert=False,canonicalname=listArgs.get('childrenOf'))
             else:
-                parent=manageInputTax(insert=False,scientificname=listArgs.get('childrenOf'))
+                parent=manageInputTax(connection=conn, insert=False,scientificname=listArgs.get('childrenOf'))
             if parent.get('alreadyInDb'):
                 cursor=conn.cursor()
                 listChildren=childrenList(cursor,parent.get('cd_tax_acc'))
@@ -234,9 +248,9 @@ class listEndem(Resource):
         if listArgs.get('childrenOf'):
             parsed = get_gbif_parsed_from_sci_name(listArgs.get('childrenOf'))
             if parsed.get('scientificName') and parsed.get('canonicalNameComplete') and parsed.get('scientificName')==parsed.get('canonicalNameComplete'):
-                parent=manageInputTax(insert=False,canonicalname=listArgs.get('childrenOf'))
+                parent=manageInputTax(connection=conn, insert=False,canonicalname=listArgs.get('childrenOf'))
             else:
-                parent=manageInputTax(insert=False,scientificname=listArgs.get('childrenOf'))
+                parent=manageInputTax(connection=conn, insert=False,scientificname=listArgs.get('childrenOf'))
             if parent.get('alreadyInDb'):
                 cursor=conn.cursor()
                 listChildren=childrenList(cursor,parent.get('cd_tax_acc'))
@@ -261,9 +275,9 @@ class listThreat(Resource):
         if listArgs.get('childrenOf'):
             parsed = get_gbif_parsed_from_sci_name(listArgs.get('childrenOf'))
             if parsed.get('scientificName') and parsed.get('canonicalNameComplete') and parsed.get('scientificName')==parsed.get('canonicalNameComplete'):
-                parent=manageInputTax(insert=False,canonicalname=listArgs.get('childrenOf'))
+                parent=manageInputTax(connection=conn, insert=False,canonicalname=listArgs.get('childrenOf'))
             else:
-                parent=manageInputTax(insert=False,scientificname=listArgs.get('childrenOf'))
+                parent=manageInputTax(connection=conn, insert=False,scientificname=listArgs.get('childrenOf'))
             if parent.get('alreadyInDb'):
                 cursor=conn.cursor()
                 listChildren=childrenList(cursor,parent.get('cd_tax_acc'))
@@ -288,9 +302,9 @@ class listTax(Resource):
         if listArgs.get('childrenOf'):
             parsed = get_gbif_parsed_from_sci_name(listArgs.get('childrenOf'))
             if parsed.get('scientificName') and parsed.get('canonicalNameComplete') and parsed.get('scientificName')==parsed.get('canonicalNameComplete'):
-                parent=manageInputTax(insert=False,canonicalname=listArgs.get('childrenOf'))
+                parent=manageInputTax(connection=conn, insert=False,canonicalname=listArgs.get('childrenOf'))
             else:
-                parent=manageInputTax(insert=False,scientificname=listArgs.get('childrenOf'))
+                parent=manageInputTax(connection=conn, insert=False,scientificname=listArgs.get('childrenOf'))
             if parent.get('alreadyInDb'):
                 cursor=conn.cursor()
                 listChildren=childrenList(cursor,parent.get('cd_tax_acc'))
@@ -307,12 +321,25 @@ class listTax(Resource):
         else:
             return res
 
+class listReferences(Resource):
+    @use_kwargs(getListRefArgs,location="query")
+    @use_kwargs(getListRefArgs,location="json")
+    def get(self, **listRefArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        listRef = getListReferences(connection=conn, formatExport= listRefArgs.get('format'), onlyEndem= listRefArgs.get('onlyEndem'), onlyExot= listRefArgs.get('onlyExot'), onlyThreat= listRefArgs.get('onlyThreat'))
+        conn.close()
+        if listRefArgs.get('format')=="CSV":
+            response_stream = BytesIO(listRef.to_csv().encode())
+            return send_file(response_stream, mimetype = "text/csv", attachment_filename = "export.csv")
+        else:
+            return listRef
+
 class insertEndem(Resource):
     @auth.login_required(role='edit')
     @use_kwargs(inputEndemArgs)
     def post(self,**inputEndem):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        res = manageInputTax(insert=True,**inputEndem)
+        res = manageInputTax(connection=conn, insert=True,**inputEndem)
         res.update(manageInputEndem(res.get('cd_tax_acc'), connection = conn, **inputEndem))
         return res
 
@@ -321,7 +348,7 @@ class insertExot(Resource):
     @use_kwargs(inputExotArgs)
     def post(self, **inputExot):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        res = manageInputTax(insert=True, **inputExot)
+        res = manageInputTax(connection=conn, insert=True, **inputExot)
         res.update(manageInputExot(res.get('cd_tax_acc'), connection = conn, **inputExot))
         return res
     
@@ -330,7 +357,7 @@ class insertThreat(Resource):
     @use_kwargs(inputThreatArgs)
     def post(self, **inputThreat):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-        res = manageInputTax(insert=True,**inputThreat)
+        res = manageInputTax(connection=conn, insert=True,**inputThreat)
         res.update(manageInputThreat(res.get('cd_tax_acc'), connection = conn, **inputThreat))
         conn.close()
         return res
@@ -339,7 +366,7 @@ class insertTaxo(Resource):
     @auth.login_required(role='edit')
     @use_kwargs(taxInputArgs)
     def post(self,**dictInput):
-        return manageInputTax(insert=True,**dictInput)
+        return manageInputTax(connection=conn, insert=True,**dictInput)
 
     
 # This error handler is necessary for usage with Flask-RESTful

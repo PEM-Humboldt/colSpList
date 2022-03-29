@@ -309,3 +309,38 @@ def getListTax(connection, listChildren, formatExport):
             res = cur.fetchall()
             cur.close()
     return res
+
+def getTax(connection, cd_tax):
+    cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    SQL="SELECT *  FROM tax_list WHERE cd_tax = %s"
+    cur.execute(SQL, [cd_tax])
+    tax = cur.fetchone()
+    return tax
+
+def getListReferences(connection, formatExport="JSON",onlyEndem=False, onlyExot=False, onlyThreat=False):
+    if not (onlyEndem or onlyExot or onlyThreat):
+        SQL = "SELECT * FROM ref_list"
+    else:
+        SQL= "SELECT * FROM ref_list WHERE "
+        if onlyExot:
+            SQL += 'nb_exot>0 '
+        else:
+            SQL += 'TRUE '
+        if onlyEndem:
+            SQL += 'AND nb_endem>0 '
+        else:
+            SQL += 'AND TRUE '
+        if onlyThreat:
+            SQL += 'AND nb_threat>0'
+        else:
+            SQL+= 'AND TRUE'
+    if formatExport=="CSV":
+        listRef=pd.read_sql_query(SQL, connection)
+    else:
+        cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(SQL)
+        listRef=cur.fetchall()
+        cur.close()
+    return listRef
+
+

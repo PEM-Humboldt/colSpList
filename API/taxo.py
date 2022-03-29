@@ -625,7 +625,7 @@ def insertTax(cursor,idParent,idSyno,**tax):
     idInserted, = cursor.fetchone()
     return idInserted
     
-def manageInputTax(insert, **inputTax):
+def manageInputTax(connection, insert, **inputTax):
     """
     Master function which organizes all the other functions running for recognizing, and inserting taxa in the databases (with their corresponding accepted and parent taxa)
     TODO: 
@@ -662,7 +662,6 @@ def manageInputTax(insert, **inputTax):
             insertedTax: List(Int):
                 List of inserted taxon (the accepted taxon itself, but also the parents and synonyms if needed)
     """
-    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
     insertedTax = list()
     res = {'cd_tax': 0, 'cd_tax_acc': 0 ,'alreadyInDb':False, 'foundGbif': False, 'matchedname': None, 'acceptedname':None, 'gbifkey':None,'syno':None, 'insertedTax': insertedTax}
     
@@ -671,13 +670,13 @@ def manageInputTax(insert, **inputTax):
     """
     syno = False
     # First check : is the taxon in the database
-    inputTax.update(test_taxInDb(connection=conn,**inputTax))
+    inputTax.update(test_taxInDb(connection=connection,**inputTax))
     if (not inputTax.get('alreadyInDb')):
         inputTax.update(get_infoTax(**inputTax))
         inputTax['syno'] = False
         # In case we did not find the taxon at first be it is indeed in the database
         if(inputTax.get('foundGbif')):
-            recheck = test_taxInDb(connection=conn,gbifkey=inputTax.get('key'))
+            recheck = test_taxInDb(connection=connection,gbifkey=inputTax.get('key'))
             inputTax['alreadyInDb']=recheck.get('alreadyInDb')
             inputTax['cdTax'] = recheck.get('cdTax')
     # Not in the database
@@ -696,11 +695,11 @@ def manageInputTax(insert, **inputTax):
             acceptedTax = {'gbifkey': inputTax.get('synogbifkey'), 'scientificname': inputTax.get('synoscientificname'), 'canonicalname': inputTax.get('synocanonicalname')}
         # 
         if(syno): 
-            acceptedTax.update(test_taxInDb(connection=conn,**acceptedTax))
+            acceptedTax.update(test_taxInDb(connection=connection,**acceptedTax))
             if(not acceptedTax.get('alreadyInDb')):
                 acceptedTax.update(get_infoTax(**acceptedTax))
                 acceptedTax['syno'] = False
-                recheckAccepted = test_taxInDb(connection=conn,gbifkey=acceptedTax.get('key'))
+                recheckAccepted = test_taxInDb(connection=connection,gbifkey=acceptedTax.get('key'))
                 acceptedTax['alreadyInDb'] = recheckAccepted.get('alreadyInDb')
                 acceptedTax['cdTax'] = recheckAccepted.get('cdTax')
     """
@@ -710,23 +709,23 @@ def manageInputTax(insert, **inputTax):
         if syno:
             if not acceptedTax.get('alreadyInDb'):
                 if acceptedTax.get('foundGbif'):
-                    accepted, parentTax = format_gbif_tax(connection=conn, **acceptedTax)
+                    accepted, parentTax = format_gbif_tax(connection=connection, **acceptedTax)
                 else:
-                    accepted, parentTax = format_inputTax(connection=conn, **acceptedTax)
+                    accepted, parentTax = format_inputTax(connection=connection, **acceptedTax)
             if(inputTax.get('foundGbif')):
-                synonym, synoParent = format_gbif_tax(connection=conn, **inputTax)
+                synonym, synoParent = format_gbif_tax(connection=connection, **inputTax)
             else:
-                synonym, synoParent = format_inputTax(connection=conn, **inputTax)
+                synonym, synoParent = format_inputTax(connection=connection, **inputTax)
         else:
             if(not inputTax.get('alreadyInDb')):
                 if(inputTax.get('foundGbif')):
-                    accepted, parentTax = format_gbif_tax(connection=conn, **inputTax)
+                    accepted, parentTax = format_gbif_tax(connection=connection, **inputTax)
                 else:
-                    accepted, parentTax = format_inputTax(connection=conn, acceptedName = None, acceptedId=None,**inputTax)
+                    accepted, parentTax = format_inputTax(connection=connection, acceptedName = None, acceptedId=None,**inputTax)
         if syno and acceptedTax.get('alreadyInDb'):
             parentTax = {'alreadyInDb': True}
         else:
-            parentTax.update(test_taxInDb(conn,**parentTax))
+            parentTax.update(test_taxInDb(connection,**parentTax))
         if(not parentTax.get('alreadyInDb')):
             if(accepted.get('gbifkey') is None):
                 parentTax.update(get_infoTax(**parentTax))
@@ -736,12 +735,12 @@ def manageInputTax(insert, **inputTax):
                 parents.append(parentTax)
             else:
                 parents = get_gbif_parent(accepted.get('gbifkey'))
-            idParentInDb, parentsFormatted = format_parents(conn,parents)
+            idParentInDb, parentsFormatted = format_parents(connection,parents)
         """
         ---------------------- Inserting the information in the database ---------------------------------
         """
-        with conn:
-            with conn.cursor() as cur:
+        with connection:
+            with connection.cursor() as cur:
                 if(not parentTax.get('alreadyInDb')):
                     for i in range(0,len(parentsFormatted)):
                         idParentInDb = insertTax(cur,idParentInDb,None,**parentsFormatted[i])
@@ -761,13 +760,13 @@ def manageInputTax(insert, **inputTax):
     --------------------------Final formatting of the returned information ------------------------------
     """
     if inputTax.get('alreadyInDb'):
-        infoDb = get_db_tax(conn,inputTax.get('cdTax'))
+        infoDb = get_db_tax(connection,inputTax.get('cdTax'))
         if inputTax.get('gbifMatchMode') == 'canonicalname':
             matchedname=infoDb.get('canonicalname')
         else:
             matchedname=infoDb.get('scientificname')
         if infoDb.get('syno'):
-            infoDbAccepted = get_db_tax(conn,AcceptedId(conn,inputTax.get('cdTax')))
+            infoDbAccepted = get_db_tax(connection,AcceptedId(connection,inputTax.get('cdTax')))
             res.update({'cd_tax': infoDb.get('cd_tax'), 'cd_tax_acc': infoDbAccepted.get('cd_tax') ,'alreadyInDb':True, 'foundGbif': bool(infoDb.get('gbifkey')), 'matchedname': matchedname, 'acceptedname':infoDbAccepted.get('scientificname'), 'gbifkey':infoDb.get('gbifkey'),'syno':True, 'insertedTax': insertedTax})
         else:
             res.update({'cd_tax': infoDb.get('cd_tax'), 'cd_tax_acc': infoDb.get('cd_tax'), 'alreadyInDb':True, 'foundGbif': bool(infoDb.get('gbifkey')), 'matchedname': matchedname, 'acceptedname':infoDb.get('scientificname'), 'gbifkey':infoDb.get('gbifkey'),'syno':False, 'insertedTax':insertedTax})
@@ -784,7 +783,7 @@ def manageInputTax(insert, **inputTax):
         res.update({'alreadyInDb': False, 'foundGbif':inputTax.get('foundGbif'), 'matchedname':matchedname,'syno':syno,'gbifkey':inputTax.get('key'),'insertedTax':insertedTax})
         if syno:
             if acceptedTax.get('alreadyInDb'):
-                infoDbAccepted = get_db_tax(conn,acceptedTax.get('cdTax'))
+                infoDbAccepted = get_db_tax(connection,acceptedTax.get('cdTax'))
                 res.update({'acceptedname':infoDbAccepted.get('scientificname')})
             else:
                 if acceptedTax.get('foundGbif'):
@@ -802,7 +801,6 @@ def manageInputTax(insert, **inputTax):
             else:
                 res.update({'acceptedname':acceptedTax.get('canonicalname')})
                     
-    conn.close()
     return res
 
 def childrenList(cursor,cd_tax):

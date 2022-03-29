@@ -285,7 +285,7 @@ CREATE OR REPLACE VIEW tax_list AS(
         t.tax_rank,
         t.cd_sup cd_parent,
         t_par.name_auth parentname,
-        t.cd_syno cd_accepted,
+        COALESCE(t.cd_syno,t.cd_tax) cd_accepted,
         t_acc.name_auth acceptedname,
         t.status,
         t.gbifkey,
@@ -296,6 +296,21 @@ CREATE OR REPLACE VIEW tax_list AS(
     FROM taxon t
     LEFT JOIN taxon t_par ON t.cd_sup=t_par.cd_tax
     LEFT JOIN taxon t_synos ON t_synos.cd_syno=t.cd_tax
-    LEFT JOIN taxon t_acc ON t.cd_syno=t_acc.cd_tax
+    LEFT JOIN taxon t_acc ON COALESCE(t.cd_syno,t.cd_tax)=t_acc.cd_tax
     GROUP BY t.cd_tax, t.name_auth, t.name,t.auth,t.tax_rank,t.cd_sup,t_par.name_auth,t.cd_syno,t_acc.name_auth,t.status,t.gbifkey,t.cd_tax IN (SELECT cd_tax FROM endemic),t.cd_tax IN (SELECT cd_tax FROM exot),t.cd_tax IN (SELECT cd_tax FROM threat)
+);
+
+CREATE OR REPLACE VIEW ref_list AS(
+    SELECT 
+        r.cd_ref,
+        r.citation ref_citation,
+        r.link,
+        COUNT(DISTINCT re.cd_tax) FILTER (WHERE re.cd_tax IS NOT NULL) nb_endem,
+        COUNT(DISTINCT rex.cd_tax) FILTER (WHERE rex.cd_tax IS NOT NULL) nb_exot,
+        COUNT(DISTINCT rt.cd_tax) FILTER (WHERE rt.cd_tax IS NOT NULL) nb_threat
+    FROM refer r
+    LEFT JOIN ref_endem re USING(cd_ref)
+    LEFT JOIN ref_exot rex USING(cd_ref)
+    LEFT JOIN ref_threat rt USING(cd_ref)
+    GROUP BY r.cd_ref, r.citation, r.link
 );

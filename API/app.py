@@ -3,7 +3,7 @@ from flask_restful import Api, Resource, abort
 from webargs import fields, validate,missing
 from webargs.flaskparser import parser
 from webargs.flaskparser import use_args,use_kwargs
-from endpoint_def import testEndem,testExot,testThreat,insertEndem,insertExot,insertThreat,insertTaxo,User,AdminUsers,listExot,listTax, listEndem, listThreat
+from endpoint_def import testEndem,testExot,testThreat,insertEndem,insertExot,insertThreat,insertTaxo,User,AdminUsers,listExot,listTax, listEndem, listThreat, listReferences, getTaxon
 PYTHONIOENCODING="UTF-8"
 
 
@@ -28,7 +28,8 @@ api.add_resource(listExot, '/listExot')
 api.add_resource(listTax, '/listTax')
 api.add_resource(listEndem, '/listEndem')
 api.add_resource(listThreat, '/listThreat')
-
+api.add_resource(listReferences, '/listReferences')
+api.add_resource(getTaxon,'/tax')
 
 if __name__ == "__main__":
     app.run()
