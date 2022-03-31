@@ -59,9 +59,14 @@ def manageSource(cursor, ref_citation, ref_link):
     # it should return the id of the source in the database
     return cdRef
 
+def mergeSources:
+
 def manageInputThreat(cd_tax, connection, **inputThreat):
     """
     Test whether the status provided by the user is compatible with the current status of the taxon (if it has one), then if it is compatible, inserts the new references provided. If the taxon has no threat status, it inserts it in the database
+    TODO
+    -----
+    Add the parameter add_comment for case where we want the commentary to be added when the status already exists
     
     Parameters
     -----------
@@ -79,6 +84,8 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
             list of URL links (should be the same length than ref_citation, with None elements where there are no URL links associated with the reference)
         'comments': str
             comments concerning the threat status (separated by "|")
+        'priority': str
+            If it is provided, avoid the errors when the status is different to preexisting status. If "low" and there is a preexisting status, the functions only add new references. If "high" and there is a preexisting status, replace the status in the database.
     Returns
     ------------
     dictionary with the following elements:
@@ -110,10 +117,17 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
         statusExists = bool(nb)
         if statusExists:
             # if it exists, look whether it is compatible with the current status
-            threatStatus = getThreatStatus(cur,cd_tax)
-            sameStatus = (threatStatus.get('cd_status') == inputThreat['threatstatus'])
-            if(not sameStatus):
-                raise Exception("The taxon already exists in the database with another threat status")
+            if inputThreat.get('priority'):
+                if inputThreat.get('priority')=='high':
+                    cur.close()
+                    return modifyThreat(cd_tax,connection,**inputThreat)
+                if inputThreat.get('priority')!='low':
+                    raise Exception('unrecognisedPriority')
+            else:
+                threatStatus = getThreatStatus(cur,cd_tax)
+                sameStatus = (threatStatus.get('cd_status') == inputThreat['threatstatus'])
+                if(not sameStatus):
+                    raise Exception("The taxon already exists in the database with another threat status")
     cur.close()
     with connection:
         with connection.cursor() as cur:
@@ -128,11 +142,66 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
                 cur.execute(SQL,[cdRefs[i],cd_tax])
     return {'cd_tax': cd_tax,'cdRefs': cdRefs}
 
+def deleteThreat(cd_tax,connection,**inputThreat):
+    cur = connection.cursor()
+    if inputThreat.get('delete_status'):
+        SQL = "SELECT cd_ref FROM ref_threat WHERE cd_tax=%s"
+        cur.execute(SQL,[cd_tax])
+        res = cur.fetchall()
+        cd_refs = [r[0] for r in res]
+        SQL = "DELETE FROM threat WHERE cd_tax=%s"
+        cur.execute(SQL, [cd_tax])
+    elif inputThreat.get('cd_ref'):
+        SQL = "DELETE FROM ref_threat WHERE cd_tax=%s AND cd_ref=%s"
+        cur.execute(SQL,[cd_tax,inputThreat.get('cd_ref')])
+        cd_refs = [cd_ref]
+    else:
+        raise Exception('noCdRefNorDeletestatus')
+    connection.commit()
+    cur.close()
+    return {'cd_tax': cd_tax, 'cd_refs': cd_refs}
+
+def modifyThreat(cd_tax,connection,**inputThreat):
+    cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    SQL = "SELECT count(*) FROM threat_status WHERE cd_status = %s"
+    cur.execute(SQL, [inputThreat.get('threatstatus')])
+    nb = cur.fetchone()['count']
+    compatible = bool(nb)
+    if (not compatible):
+        raise Exception("The input threat status is not recognized")
+    else:
+        # find the threat status if it exists in the database
+        SQL = "SELECT count(*) FROM threat WHERE cd_tax=%s"
+        cur.execute(SQL,[cd_tax])
+        nb = cur.fetchone()['count']
+        statusExists = bool(nb)
+        if not statusExists:
+            raise Exception('noStatus')
+    cur.close()
+    with connection:
+        with connection.cursor() as cur:
+            cdRefs = [manageSource(cur,inputThreat['ref_citation'][i],inputThreat.get('link')[i] if bool(inputThreat.get('link')) else None) for i in range(0,len(inputThreat['ref_citation']))]
+            SQL = "UPDATE threat SET cd_status=%s WHERE cd_tax=%s"
+            cur.execute(SQL, [inputThreat['threatstatus'],cd_tax])
+            if inputThreat.get('comments'):
+                if inputThreat.get('replace_comment'):
+                    SQL = "UPDATE threat SET comments=%s WHERE cd_tax=%s"
+                    cur.execute(SQL,[inputThreat.get('comments'),cd_tax])
+                else:
+                    SQL = "WITH c0 AS (SELECT cd_tax,comments FROM threat WHERE cd_tax=%s), c1 AS (SELECT %s AS new_comment), c2 AS (SELECT cd_tax, CASE WHEN c0.comments IS NULL THEN c1.new_comment ELSE c0.comments || ' | ' || c1.new_comment END AS new FROM c0,c1) UPDATE threat SET comments=c2.new FROM c2 WHERE cd_tax=c2.cd_tax"
+                    cur.execute(SQL,[cd_tax,inputThreat.get('comments')])
+            for i in range(len(cdRefs)):
+                SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_threat AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_threat(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
+                cur.execute(SQL,[cdRefs[i],cd_tax])
+    return {'cd_tax': cd_tax,'cdRefs': cdRefs}
 
 def manageInputEndem(cd_tax,connection,**inputEndem):
     """
     Test whether the status provided by the user is compatible with the current status of the taxon (if it has one), then if it is compatible, inserts the new references provided. If the taxon has no endemic status, it inserts it in the database
     
+    TODO
+    -----
+    Add the parameter add_comment for case where we want the commentary to be added when the status already exists
     Parameters
     -----------
     cd_tax: int [mandatory]
@@ -149,6 +218,8 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
             list of URL links (should be the same length than ref_citation, with None elements where there are no URL links associated with the reference)
         'comments': str
             comments concerning the endemism status (separated by "|")
+        'priority': str
+            If it is provided, avoid the errors when the status is different to preexisting status. If "low" and there is a preexisting status, the functions only add new references. If "high" and there is a preexisting status, replace the status in the database.
     Returns
     ------------
     dictionary with the following elements:
@@ -184,8 +255,14 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
         statusExists = bool(nb)
         if statusExists:
             # if it exists, look whether it is compatible with the current status
-            endemStatus = getEndemStatus(cur,cd_tax)
-            sameStatus = (nivInput == endemStatus['cd_nivel'])
+            if inputEndem.get('priority'):
+                if inputEndem.get('priority')=='high':
+                    cur.close()
+                    return modifyEndem(cd_tax,connection,**inputEndem)
+                if inputEndem.get('priority')!='low':
+                    raise Exception('unrecognisedPriority'):
+            threatStatus = getEndemStatus(cur,cd_tax)
+            sameStatus = (endemStatus.get('cd_status') == inputEndem['endemstatus'])
             if(not sameStatus):
                 raise Exception("The taxon already exists in the database with another endemic status")
     cur.close()
@@ -202,9 +279,69 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
                 cur.execute(SQL,[cdRefs[i],cd_tax])
     return {'cd_tax': cd_tax,'cdRefs': cdRefs}
 
+def deleteEndem(cd_tax,connection,**inputEndem):
+    cur = connection.cursor()
+    if inputEndem.get('delete_status'):
+        SQL = "SELECT cd_ref FROM ref_endem WHERE cd_tax=%s"
+        cur.execute(SQL,[cd_tax])
+        res = cur.fetchall()
+        cd_refs = [r[0] for r in res]
+        SQL = "DELETE FROM endemic WHERE cd_tax=%s"
+        cur.execute(SQL, [cd_tax])
+    elif inputEndem.get('cd_ref'):
+        SQL = "DELETE FROM ref_endem WHERE cd_tax=%s AND cd_ref=%s"
+        cur.execute(SQL,[cd_tax,inputEndem.get('cd_ref')])
+        cd_refs = [cd_ref]
+    else:
+        raise Exception('noCdRefNorDeletestatus')
+    connection.commit()
+    cur.close()
+    return {'cd_tax': cd_tax, 'cd_refs': cd_refs}
+
+def modifyEndem(cd_tax,connection,**inputEndem):
+    cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    SQL = "WITH e AS (SELECT %s::text AS nivel) SELECT count(*) FROM nivel_endem,e WHERE descr_endem_es = e.nivel OR descr_endem_en = e.nivel OR cd_nivel::text=e.nivel"
+    cur.execute(SQL, [inputEndem.get('endemstatus')])
+    nb = cur.fetchone()['count']
+    compatible = bool(nb)
+    if (not compatible):
+        raise Exception("The input endem status is not recognized")
+    else:
+        SQL = "WITH e AS (SELECT %s::text AS nivel) SELECT cd_nivel FROM nivel_endem,e WHERE descr_endem_es = e.nivel OR descr_endem_en = e.nivel OR cd_nivel::text=e.nivel"
+        cur.execute(SQL,[inputEndem.get('endemstatus')])
+        nivInput = cur.fetchone()['cd_nivel']
+        # find the endem status if it exists in the database
+        SQL = "SELECT count(*) FROM endemic WHERE cd_tax=%s"
+        cur.execute(SQL,[cd_tax])
+        nb = cur.fetchone()['count']
+        statusExists = bool(nb)
+        if not statusExists:
+            raise Exception('noStatus')
+    cur.close()
+    with connection:
+        with connection.cursor() as cur:
+            cdRefs = [manageSource(cur,inputEndem['ref_citation'][i],inputEndem.get('link')[i] if bool(inputEndem.get('link')) else None) for i in range(0,len(inputEndem['ref_citation']))]
+            SQL = "UPDATE endemic SET cd_nivel=%s WHERE cd_tax=%s"
+            cur.execute(SQL, [nivInput,cd_tax])
+            if inputEndem.get('comments'):
+                if inputEndem.get('replace_comment'):
+                    SQL = "UPDATE endemic SET comments=%s WHERE cd_tax=%s"
+                    cur.execute(SQL,[inputEndem.get('comments'),cd_tax])
+                else:
+                    SQL = "WITH c0 AS (SELECT cd_tax,comments FROM endemic WHERE cd_tax=%s), c1 AS (SELECT %s AS new_comment), c2 AS (SELECT cd_tax, CASE WHEN c0.comments IS NULL THEN c1.new_comment ELSE c0.comments || ' | ' || c1.new_comment END AS new FROM c0,c1) UPDATE endemic SET comments=c2.new FROM c2 WHERE cd_tax=c2.cd_tax"
+                    cur.execute(SQL,[cd_tax,inputEndem.get('comments')])
+            for i in range(len(cdRefs)):
+                SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_endem AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_endem(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
+                cur.execute(SQL,[cdRefs[i],cd_tax])
+    return {'cd_tax': cd_tax,'cdRefs': cdRefs}
+
 def manageInputExot(cd_tax,connection,**inputExot):
     """
     Test whether the status provided by the user is compatible with the current status of the taxon (if it has one), then if it is compatible, inserts the new references provided. If the taxon has no alien/invasive status, it inserts it in the database
+    
+    TODO
+    -----
+    Add the parameter add_comment for case where we want the commentary to be added when the status already exists
     
     Parameters
     -----------
@@ -224,6 +361,8 @@ def manageInputExot(cd_tax,connection,**inputExot):
             list of URL links (should be the same length than ref_citation, with None elements where there are no URL links associated with the reference)
         'comments': str
             comments concerning the alien/invasive status (separated by "|")
+        'priority': str
+            If it is provided, avoid the errors when the status is different to preexisting status. If "low" and there is a preexisting status, the functions only add new references. If "high" and there is a preexisting status, replace the status in the database.
     Returns
     ------------
     dictionary with the following elements:
@@ -248,10 +387,17 @@ def manageInputExot(cd_tax,connection,**inputExot):
     statusExists = bool(nb)
     if statusExists:
         # if it exists, look whether it is compatible with the current status
-        exotStatus = getExotStatus(cur,cd_tax)
-        sameStatus = (inputExot.get('is_alien') == exotStatus['is_alien']) and (inputExot.get('is_invasive') == exotStatus['is_invasive'])   
-        if(not sameStatus):
-            raise Exception("The taxon already exists in the database with another alien/invasive status")
+        if inputExot.get('priority'):
+            if inputExot.get('priority')=='high':
+                cur.close()
+                return modifyExot(cd_tax,connection,**inputExot)
+            if inputExot.get('priority')!='low':
+                raise Exception('unrecognisedPriority')
+        else:
+            exotStatus = getExotStatus(cur,cd_tax)
+            sameStatus = (inputExot.get('is_alien') == exotStatus['is_alien']) and (inputExot.get('is_invasive') == exotStatus['is_invasive'])   
+            if(not sameStatus):
+                raise Exception("The taxon already exists in the database with another threat status")    
     cur.close()
     with connection:
         with connection.cursor() as cur:
@@ -266,4 +412,48 @@ def manageInputExot(cd_tax,connection,**inputExot):
                 cur.execute(SQL,[cdRefs[i],cd_tax])
     return {'cd_tax': cd_tax,'cdRefs': cdRefs}
 
+def deleteExot(cd_tax,connection,**inputExot):
+    cur = connection.cursor()
+    if inputExot.get('delete_status'):
+        SQL = "SELECT cd_ref FROM ref_exot WHERE cd_tax=%s"
+        cur.execute(SQL,[cd_tax])
+        res = cur.fetchall()
+        cd_refs = [r[0] for r in res]
+        SQL = "DELETE FROM exot WHERE cd_tax=%s"
+        cur.execute(SQL, [cd_tax])
+    elif inputExot.get('cd_ref'):
+        SQL = "DELETE FROM ref_exot WHERE cd_tax=%s AND cd_ref=%s"
+        cur.execute(SQL,[cd_tax,inputExot.get('cd_ref')])
+        cd_refs = [cd_ref]
+    else:
+        raise Exception('noCdRefNorDeletestatus')
+    connection.commit()
+    cur.close()
+    return {'cd_tax': cd_tax, 'cd_refs': cd_refs}
 
+def modifyExot(cd_tax,connection,**inputExot):
+    cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    # find the  status if it exists in the database
+    SQL = "SELECT count(*) FROM exot WHERE cd_tax=%s"
+    cur.execute(SQL,[cd_tax])
+    nb = cur.fetchone()['count']
+    statusExists = bool(nb)
+    if not statusExists:
+        raise Exception('noStatus')
+    cur.close()
+    with connection:
+        with connection.cursor() as cur:
+            cdRefs = [manageSource(cur,inputExot['ref_citation'][i],inputExot.get('link')[i] if bool(inputExot.get('link')) else None) for i in range(0,len(inputExot['ref_citation']))]
+            SQL = "UPDATE exot SET cd_nivel=%s WHERE cd_tax=%s"
+            cur.execute(SQL, [nivInput,cd_tax])
+            if inputExot.get('comments'):
+                if inputExot.get('replace_comment'):
+                    SQL = "UPDATE exot SET comments=%s WHERE cd_tax=%s"
+                    cur.execute(SQL,[inputExot.get('comments'),cd_tax])
+                else:
+                    SQL = "WITH c0 AS (SELECT cd_tax,comments FROM exot WHERE cd_tax=%s), c1 AS (SELECT %s AS new_comment), c2 AS (SELECT cd_tax, CASE WHEN c0.comments IS NULL THEN c1.new_comment ELSE c0.comments || ' | ' || c1.new_comment END AS new FROM c0,c1) UPDATE exot SET comments=c2.new FROM c2 WHERE cd_tax=c2.cd_tax"
+                    cur.execute(SQL,[cd_tax,inputExot.get('comments')])
+            for i in range(len(cdRefs)):
+                SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_exot AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_exot(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
+                cur.execute(SQL,[cdRefs[i],cd_tax])
+    return {'cd_tax': cd_tax,'cdRefs': cdRefs}

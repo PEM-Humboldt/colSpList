@@ -822,8 +822,98 @@ def checkCdTax(connection, cd_tax, **taxArgs):
     retrievedInfo = manageInputTax(connection=connection, insert = F, **taxArgs)
     return retrievedInfo.get('cd_tax') == cd_tax
     
-def deleteTaxo(cursor, cd_tax):
+def deleteTaxo(connection, cd_tax):
+    cur=connection.cursor()
+    children = childrenList(cur,cd_tax)
+    SQL = "SELECT cd_tax FROM taxon WHERE cd_syno = %s"
+    cur.execute(SQL,[cd_tax])
+    res = cur.fetchall()
+    cds_syno = [r[0] for r in res]
     SQL = "DELETE FROM taxon WHERE cd_tax =%s RETURNING cd_tax"
     cursor.execute(SQL,[cd_tax])
     cd_tax, =cursor.fetchone()
-    return cd_tax
+    connection.commit()
+    cur.close()
+    return {'cd_tax': cd_tax, 'cd_children':children, 'cd_synos':cds_syno}
+
+def modifyTaxo(connection, cd_tax, **putTaxArgs):
+    inserted=[]
+    cur= connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    SQL = "SELECT * FROM taxon WHERE cd.tax=%s"
+    cur.execute(SQL,[cd_tax])
+    oldTax=dict(cur.fetchone)
+    cur.close()
+    cur=connection.cursor()
+    children = childrenList(cur,cd_tax)
+    SQL = "SELECT cd_tax FROM taxon WHERE cd_syno = %s"
+    cur.execute(SQL[cd_tax])
+    res = cur.fetchall()
+    cds_syno = [r[0] for r in res]
+    cur.close()
+    if putTaxArgs.get('gbifkey'):
+        insert=manageInputTax(connection=connection,insert=T,**{'gbifkey':putTaxArgs.get('gbifkey')})
+        inserted+=insert.get('insertedTax')
+        if insert.get('alreadyInDb'):
+            raise Exception('NewGbifkeyAlreadypresent')
+        else:
+            cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            SQL = "SELECT * FROM taxon WHERE cd.tax=%s"
+            cur.execute(SQL, [insert.get('cd_tax')])
+            newTax=dict(cur.fetchone())
+            cur.close()
+            deleteTaxo(connection,newTax.get('cd_tax'))
+            cur=connection.cursor()
+            SQL = "UPDATE taxon SET name=%s, name_auth=%s, auth=%s, tax_rank=%s, cd_sup=%s, cd_syno=%s, status=%s, gbifkey=%s WHERE cd_tax=%s")
+            cur.execute(SQL,[newTax.get('name'), newTax.get('name_auth'),newTax.get('auth'),newTax.get('tax_rank'),newTax.get('cd_sup'),newTax.get('cd_syno'),newTax.get('status'),newTax.get('gbifkey'),cd_tax])
+            connection.commit()
+            cur.close()
+    else:
+        if putTaxArgs.get('parentgbifkey') or putTaxArgs.get('parentcanonicalname') or putTaxArgs('parentscientificname'):
+            parentInsert = manageInputTax(connection=connection,insert=True, **{'gbifkey':putTaxArgs.get('parentgbifkey'),'canonicalname':putTaxArgs.get('parentcanonicalname'),'scientificname':putTaxArgs('parentscientificname')})
+            if oldTax.get('cd_sup') != parentInsert.get('cd_tax_acc'):
+                cur = connection.cursor()
+                SQL = "UPDATE taxon SET cd_sup=%s, gbifkey=NULL WHERE cd_tax=%s"
+                cur.execute(SQL,[parentInsert.get('cd_tax_acc'),cd_tax])
+                connection.commit()
+                cur.close()
+            inserted+=parentInsert.get('insertedtax')
+        if putTaxArgs.get('synogbifkey') or putTaxArgs.get('synocanonicalname') or putTaxArgs('synoscientificname'):
+            synoInsert = manageInputTax(connection=connection,insert=True, **{'gbifkey':putTaxArgs.get('synogbifkey'),'canonicalname':putTaxArgs.get('synocanonicalname'),'scientificname':putTaxArgs('synoscientificname')})
+            if oldTax.get('cd_syno') != synoInsert.get('cd_tax_acc'):
+                cur = connection.cursor()
+                SQL = "UPDATE taxon SET cd_syno=%s, gbifkey=NULL WHERE cd_tax=%s"
+                cur.execute(SQL,[synoInsert.get('cd_tax_acc'),cd_tax])
+                connection.commit()
+                cur.close()
+            inserted+=synoInsert.get('insertedtax')
+        cur = connection.cursor()
+        if putTaxArgs.get('scientificname') and putTaxArgs.get('scientificname') != oldTax.get('name_auth'):
+            SQL="UPDATE taxon SET name_auth=%s, gbifkey=NULL WHERE cd_tax=%s"# We suppress the gbifkey because the new version of the taxon might lose compatibility with gbif...
+            cur.execute(SQL,[putTaxArgs.get('scientificname'),cd_tax])
+        if putTaxArgs.get('canonicalname') and putTaxArgs.get('canonicalname') != oldTax.get('name'):
+            SQL="UPDATE taxon SET name=%s, gbifkey=NULL WHERE cd_tax=%s"# We suppress the gbifkey because the new version of the taxon might lose compatibility with gbif...
+            cur.execute(SQL,[putTaxArgs.get('canonicalname'),cd_tax])
+        if putTaxArgs.get('authorship') and putTaxArgs.get('authorship') != oldTax.get('name'):
+            SQL="UPDATE taxon SET auth=%s, gbifkey=NULL WHERE cd_tax=%s"# We suppress the gbifkey because the new version of the taxon might lose compatibility with gbif...
+            cur.execute(SQL,[putTaxArgs.get('authorship'),cd_tax])
+        if putTaxArgs.get('syno') is not None and putTaxArgs.get('syno') != (oldTax.get('status')=='SYNONYM'):
+            if putTaxArgs.get('syno'):
+                status='SYNONYM'
+            else:
+                status='DOUBTFUL'
+            SQL="UPDATE taxon SET status=%s, gbifkey=NULL WHERE cd_tax=%s"# We suppress the gbifkey because the new version of the taxon might lose compatibility with gbif...
+            cur.execute(SQL,[putTaxArgs.get('syno'),cd_tax])
+        if putTaxArgs.get('status') and putTaxArgs.get('status') != oldTax.get('status'):
+            SQL="UPDATE taxon SET status=%s, gbifkey=NULL WHERE cd_tax=%s"# We suppress the gbifkey because the new version of the taxon might lose compatibility with gbif...
+            cur.execute(SQL,[putTaxArgs.get('status'),cd_tax])
+        cur.close()
+    if putTaxArgs.get('reference') or putTaxArgs.get('cd_ref'):
+        cur=connection.cursor()
+        cd_ref=putTaxArgs.get('cd_ref')
+        if putTaxArgs.get('reference'):
+            cd_ref = manageSource(cur, putTaxArgs.get('reference'), putTaxArgs.get('link'))
+        SQL = "UPDATE taxon SET source=%s WHERE cd_tax=%s"
+        cur.execute(SQL,[cd_ref,cd_tax])
+        cur.close()
+    connection.commit()
+    return {'cd_tax':cd_tax, 'insertedTax':inserted}
