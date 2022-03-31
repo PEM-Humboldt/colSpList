@@ -57,7 +57,7 @@ def manageSource(cursor, ref_citation, ref_link):
         cursor.execute(SQL,[ref_citation, ref_link])
         cdRef, = cursor.fetchone()
     # it should return the id of the source in the database
-    return(cdRef)
+    return cdRef
 
 def manageInputThreat(cd_tax, connection, **inputThreat):
     """

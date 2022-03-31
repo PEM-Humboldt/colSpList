@@ -14,6 +14,7 @@ import psycopg2.extras
 from io import BytesIO
 from flask import send_file
 from fuzzywuzzy import fuzz
+from mamageStatus import manageSource
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
@@ -628,12 +629,11 @@ def insertTax(cursor,idParent,idSyno,**tax):
 def manageInputTax(connection, insert, **inputTax):
     """
     Master function which organizes all the other functions running for recognizing, and inserting taxa in the databases (with their corresponding accepted and parent taxa)
-    TODO: 
-    ---------
-        1. pass the connection as a parameter instead of creating it inside the function
-        
+    
     Parameters
     ------------
+    connection: psycopg2 connection
+        connection to the postgres database
     insert: Bool
         Whether the insertion of taxa which are not in the database should be done or not
     inputTax: dict
@@ -766,7 +766,7 @@ def manageInputTax(connection, insert, **inputTax):
         else:
             matchedname=infoDb.get('scientificname')
         if infoDb.get('syno'):
-            infoDbAccepted = get_db_tax(connection,AcceptedId(connection,inputTax.get('cdTax')))
+            infoDbAccepted = get_db_tax(connection,acceptedId(connection,inputTax.get('cdTax')))
             res.update({'cd_tax': infoDb.get('cd_tax'), 'cd_tax_acc': infoDbAccepted.get('cd_tax') ,'alreadyInDb':True, 'foundGbif': bool(infoDb.get('gbifkey')), 'matchedname': matchedname, 'acceptedname':infoDbAccepted.get('scientificname'), 'gbifkey':infoDb.get('gbifkey'),'syno':True, 'insertedTax': insertedTax})
         else:
             res.update({'cd_tax': infoDb.get('cd_tax'), 'cd_tax_acc': infoDb.get('cd_tax'), 'alreadyInDb':True, 'foundGbif': bool(infoDb.get('gbifkey')), 'matchedname': matchedname, 'acceptedname':infoDb.get('scientificname'), 'gbifkey':infoDb.get('gbifkey'),'syno':False, 'insertedTax':insertedTax})
@@ -817,4 +817,13 @@ def childrenList(cursor,cd_tax):
             foundMore=False
     all_children.sort()
     return all_children
+
+def checkCdTax(connection, cd_tax, **taxArgs):
+    retrievedInfo = manageInputTax(connection=connection, insert = F, **taxArgs)
+    return retrievedInfo.get('cd_tax') == cd_tax
     
+def deleteTaxo(cursor, cd_tax):
+    SQL = "DELETE FROM taxon WHERE cd_tax =%s RETURNING cd_tax"
+    cursor.execute(SQL,[cd_tax])
+    cd_tax, =cursor.fetchone()
+    return cd_tax

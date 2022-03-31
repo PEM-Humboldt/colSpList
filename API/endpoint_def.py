@@ -1,7 +1,7 @@
 from io import BytesIO
 from flask import Flask, render_template, jsonify, g, send_file
 from flask_restful import Resource, Api
-from taxo import manageInputTax, get_gbif_parsed_from_sci_name, childrenList
+from taxo import manageInputTax, get_gbif_parsed_from_sci_name, childrenList, checkCdTax, deleteTaxo, modifyTaxo
 from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
 from security import new_user, delete_user, valid_password, user_exists, get_user, generate_auth_token, verify_auth_token, grant_user, revoke_user, grant_edit, revoke_edit, grant_admin, revoke_admin,change_password, get_user_list
 from manageStatus import manageInputThreat, manageInputEndem, manageInputExot
@@ -342,6 +342,8 @@ class insertEndem(Resource):
         res = manageInputTax(connection=conn, insert=True,**inputEndem)
         res.update(manageInputEndem(res.get('cd_tax_acc'), connection = conn, **inputEndem))
         return res
+    
+    
 
 class insertExot(Resource):
     @auth.login_required(role='edit')
@@ -366,7 +368,31 @@ class insertTaxo(Resource):
     @auth.login_required(role='edit')
     @use_kwargs(taxInputArgs)
     def post(self,**dictInput):
-        return manageInputTax(connection=conn, insert=True,**dictInput)
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        res = manageInputTax(connection=conn, insert=True,**dictInput)
+        conn.close()
+        return res
+    
+    @auth.login_required(role='edit')
+    @use_kwargs(delTaxoArgs)
+    def delete(self,**delTaxArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cd_tax = delTaxArgs.get('cd_tax')
+        if delTaxArgs.get('canonicalname') or delTaxArgs.get('scientificname') or delTaxArgs.get('gbifkey'):
+            if not checkCdTax(connection=conn, cd_tax=cd_tax, **taxArgs=delTaxArgs):
+                raise Exception('noCompatibilityCdTaxInputTax')
+        res = deleteTaxo(connection, cd_tax)
+        conn.close()
+        return res
+        
+    @auth.login_required(role='edit')
+    @use_kwargs(putTaxoArgs)
+    def put(self,**putTaxArgs):
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cd_tax = putTaxArgs.get('cd_tax')
+        res = modifyTaxo(connection=connection, cd_tax=cd_tax,**putTaxArgs)
+        conn.close()
+        return res
 
     
 # This error handler is necessary for usage with Flask-RESTful

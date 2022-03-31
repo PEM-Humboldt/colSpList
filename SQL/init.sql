@@ -28,11 +28,11 @@ CREATE TABLE taxon
     name_auth text,
     auth text,
     tax_rank varchar(6) NOT NULL  REFERENCES tax_rank(cd_rank) ON DELETE SET NULL ON UPDATE CASCADE DEFERRABLE,
-    cd_sup integer REFERENCES taxon(cd_tax)  ON UPDATE CASCADE DEFERRABLE,
-    cd_syno integer REFERENCES taxon(cd_tax)  ON UPDATE CASCADE DEFERRABLE,
+    cd_sup integer REFERENCES taxon(cd_tax)  ON UPDATE CASCADE DEFERRABLE ON DELETE SET NULL,
+    cd_syno integer REFERENCES taxon(cd_tax)  ON UPDATE CASCADE DEFERRABLE ON DELETE SET NULL,
     status varchar(15) REFERENCES tax_status(status),
     gbifkey bigint UNIQUE,
-    source integer REFERENCES refer(cd_ref)
+    source integer REFERENCES refer(cd_ref) ON UPDATE CASCADE ON DELETE SET NULL
 );
 CREATE INDEX taxon_cd_sup_idx ON taxon(cd_sup);
 CREATE INDEX taxon_cd_syno_idx ON taxon(cd_syno);
@@ -89,7 +89,7 @@ CREATE TABLE def_habito
 CREATE TABLE habito
 (
     id serial PRIMARY KEY,
-    cd_tax integer REFERENCES taxon(cd_tax) NOT NULL,
+    cd_tax integer REFERENCES taxon(cd_tax) NOT NULL ON UPDATE CASCADE ON DELETE CASCADE,
     cd_hab varchar(50) REFERENCES def_habito(cd_hab) NOT NULL,
     UNIQUE (cd_tax, cd_hab)
 );
@@ -110,7 +110,7 @@ CREATE TABLE uso
 
 CREATE TABLE exot
 (
-    cd_tax integer PRIMARY KEY REFERENCES taxon(cd_tax),
+    cd_tax integer PRIMARY KEY REFERENCES taxon(cd_tax) ON DELETE CASCADE ON UPDATE CASCADE,
     is_alien boolean,
     is_invasive boolean,
     -- occ_observed boolean,
@@ -143,7 +143,7 @@ VALUES
     
 CREATE TABLE threat
 (
-    cd_tax integer PRIMARY KEY REFERENCES taxon(cd_tax),
+    cd_tax integer PRIMARY KEY REFERENCES taxon(cd_tax) ON DELETE CASCADE ON UPDATE CASCADE,
     cd_status varchar(15) REFERENCES threat_status(cd_status),
     comments text,
     comment text
@@ -167,7 +167,7 @@ VALUES
 
 CREATE TABLE endemic
 (
-    cd_tax integer PRIMARY KEY REFERENCES taxon(cd_tax),
+    cd_tax integer PRIMARY KEY REFERENCES taxon(cd_tax) ON UPDATE CASCADE ON DELETE CASCADE,
     cd_nivel integer REFERENCES nivel_endem(cd_nivel),
     comments text
 );
