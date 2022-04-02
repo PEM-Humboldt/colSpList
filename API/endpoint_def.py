@@ -13,6 +13,7 @@ from flask_httpauth import HTTPBasicAuth
 import psycopg2
 import psycopg2.extras
 import os
+import input_args
 
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
@@ -46,34 +47,8 @@ def get_roles(authenticated):
     if not authenticated:
         raise Exception("User was not authenticated, no role can be determined")
     return g.user.get('roles')
-    
-getListArgs = {'childrenOf':fields.Str(required=False),'format':fields.Str(required=False)}
-
-getListRefArgs = {'format':fields.Str(required=False), 'onlyEndem':fields.Bool(required=False),'onlyExot':fields.Bool(required=False),'onlyThreat':fields.Bool(required=False)}
-
-taxReconArgs = {'cd_tax': fields.Int(required=False), 'gbifkey': fields.Int(required=False), 'scientificname': fields.Str(required=False), 'canonicalname': fields.Str(required=False)}
-
-taxInputArgs = {'gbifkey':fields.Int(required=False), 'scientificname':fields.Str(required=False), 'canonicalname':fields.Str(required=False), 'authorship':fields.Str(required=False), 'syno':fields.Bool(required=False), 'rank': fields.Str(required=False), 'parentgbifkey':fields.Int(required=False), 'parentcanonicalname':fields.Str(required=False), 'parentscientificname':fields.Str(required=False), 'synogbifkey':fields.Int(required=False), 'synocanonicalname':fields.Str(required=False), 'synoscientificname':fields.Str(required=False) }
-
-# TODO: check, for link, how to authorize some of the element of a list to be None and how to force the link and ref_citation to be of the same size
-
-newUserArgs = {'username':fields.Str(required=False), 'password':fields.Str(required=False)}
-
-modifyUserAdminArgs={'grant_user':fields.Bool(required=False),'grant_edit':fields.Bool(required=False),'grant_admin':fields.Bool(required=False),'revoke_user':fields.Bool(required=False),'revoke_edit':fields.Bool(required=False),'revoke_admin':fields.Bool(required=False),'newPassword':fields.Str(required=False)}
-modifyUserAdminArgs.update(newUserArgs)
-
-modifyPw={'newPassword':fields.Str(required=True)}
-
-inputThreatArgs={'threatstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)}
-inputThreatArgs.update(taxInputArgs)
 
 
-inputEndemArgs={'endemstatus': fields.Str(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(), required = False), 'comments': fields.Str(required=False)}
-inputEndemArgs.update(taxInputArgs)
-
-inputExotArgs={'is_alien':fields.Bool(required=True), 'is_invasive': fields.Bool(required=True), 'occ_observed': fields.Bool(required=False),'cryptogenic': fields.Bool(required=False), 'ref_citation':fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(),required=False), 'comments': fields.Str(required=False)}
-inputExotArgs.update(taxInputArgs)
-"""
 
 
 # performance
