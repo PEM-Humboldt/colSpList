@@ -59,7 +59,8 @@ def manageSource(cursor, ref_citation, ref_link):
     # it should return the id of the source in the database
     return cdRef
 
-def mergeSources:
+def mergeSources(connection, into_ref, from_ref):
+    None
 
 def manageInputThreat(cd_tax, connection, **inputThreat):
     """
@@ -260,7 +261,7 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
                     cur.close()
                     return modifyEndem(cd_tax,connection,**inputEndem)
                 if inputEndem.get('priority')!='low':
-                    raise Exception('unrecognisedPriority'):
+                    raise Exception('unrecognisedPriority')
             threatStatus = getEndemStatus(cur,cd_tax)
             sameStatus = (endemStatus.get('cd_status') == inputEndem['endemstatus'])
             if(not sameStatus):

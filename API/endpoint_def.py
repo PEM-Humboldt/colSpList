@@ -73,7 +73,46 @@ inputEndemArgs.update(taxInputArgs)
 
 inputExotArgs={'is_alien':fields.Bool(required=True), 'is_invasive': fields.Bool(required=True), 'occ_observed': fields.Bool(required=False),'cryptogenic': fields.Bool(required=False), 'ref_citation':fields.List(fields.Str(),required=True), 'link': fields.List(fields.Str(),required=False), 'comments': fields.Str(required=False)}
 inputExotArgs.update(taxInputArgs)
+"""
 
+
+# performance
+class cleanDb(Resource):
+    @use_kwargs(cleanDbArgs,location="query")
+    @use_kwargs(cleanDbArgs,location="json")
+    @auth.login_required(role=['edit','admin'])
+    def delete(self,**cdbArgs):
+        cd_taxs=[]
+        cd_refs=[]
+        cd_status=[]
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        if cdbArgs.get('status_no_ref'):
+            cd_status+=delStatus_no_reference(conn)
+        if cdbArgs.get('ref_no_status'):
+            cd_refs+=delReference_no_status(conn)
+        if cdbArgs.get('syno_no_tax'):
+            cd_taxs+=delSyno_no_tax(conn)
+        if cdbArgs.get('tax_no_status'):
+            cd_taxs+=delTaxo_no_status(conn)
+        conn.close()
+        return {'cd_tax':cd_taxs,'cd_refs':cd_refs,'cd_st': cd_status}
+        
+class performance(Resource)
+    @use_kwargs(performanceArgs,location="query")
+    @use_kwargs(performanceArgs,location="json")
+    @auth.login_required(role=['admin'])
+    def put(self,**perfArgs):
+        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+        conn.set_isolation_level(0)
+        if perfArgs.get('vacuum'):
+            SQL = 'VACUUM '
+        if perfArgs.get('analyse')
+            SQL += 'ANALYSE'
+        cur=conn.cursor()
+        cur.execute(SQL)
+        conn.commit()
+        conn.close()
+        
 # security
 class User(Resource):
     @auth.login_required
@@ -379,7 +418,7 @@ class insertTaxo(Resource):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         cd_tax = delTaxArgs.get('cd_tax')
         if delTaxArgs.get('canonicalname') or delTaxArgs.get('scientificname') or delTaxArgs.get('gbifkey'):
-            if not checkCdTax(connection=conn, cd_tax=cd_tax, **taxArgs=delTaxArgs):
+            if not checkCdTax(connection=conn, cd_tax=cd_tax, **delTaxArgs):
                 raise Exception('noCompatibilityCdTaxInputTax')
         res = deleteTaxo(connection, cd_tax)
         conn.close()

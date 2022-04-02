@@ -14,7 +14,7 @@ import psycopg2.extras
 from io import BytesIO
 from flask import send_file
 from fuzzywuzzy import fuzz
-from mamageStatus import manageSource
+from manageStatus import manageSource
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
@@ -818,6 +818,51 @@ def childrenList(cursor,cd_tax):
     all_children.sort()
     return all_children
 
+def parentList(cursor, cd_tax, includeBaseTax=True):
+    foundMore = True
+    all_parents = []
+    currentTax = [cd_tax]
+    if includeBaseTax:
+        all_parents += [cd_tax]
+    SQL = "SELECT tp.cd_tax FROM taxon t JOIN taxon tp ON t.cd_sup=tp.cd_tax WHERE t.cd_tax=%s"
+    while foundMore:
+        cursor.execute(SQL,currentTax)
+        currentTax = cursor.fetchone()
+        if not currentTax:
+            foundMore= False
+        else:
+            all_parents += currentTax
+    all_parents.sort()
+    return all_parents
+
+def synoList(cursor, cd_tax):
+    SQL = "SELECT ts.cd_tax FROM taxon t JOIN taxon ts ON ts.cd_syno=t.cd_tax WHERE t.cd_tax=%s"
+    cursor.execute(SQL,[cd_tax])
+    res = cursor.fetchall()
+    cds_syno = [r[0] for r in res]
+    cds_syno.sort()
+    return cds_syno
+
+def synosAndParents(cursor,cd_taxs):
+    all_parents=[]
+    current=cd_taxs
+    foundMore = True
+    SQL_par = "SELECT tp.cd_tax FROM taxon t JOIN taxon tp ON t.cd_sup=tp.cd_tax WHERE t.cd_tax IN (SELECT(UNNEST(%s)))"
+    while foundMore:
+        cursor.execute(SQL_par,[current])
+        res = cursor.fetchall()
+        current = [r[0] for r in res if r[0] not in all_parents and r[0] not in cd_taxs]
+        current = list(set(current))
+        all_parents+=current
+        if len(current)==0:
+            foundMore = False
+    all_parents.sort()
+    SQL_syno = "WITH a AS (SELECT UNNEST(%s) AS cd_tax) SELECT ts.cd_tax FROM a JOIN taxon t USING (cd_tax) JOIN taxon ts ON t.cd_tax=ts.cd_syno"
+    cursor.execute(SQL_syno,[all_parents+cd_taxs])
+    res = cursor.fetchall()
+    cds_syno = [r[0] for r in res]
+    return {'cd_taxs':cd_taxs,'cd_parents': all_parents,'cd_synos':cds_syno,'all':cd_taxs+all_parents+cds_syno}
+
 def checkCdTax(connection, cd_tax, **taxArgs):
     retrievedInfo = manageInputTax(connection=connection, insert = F, **taxArgs)
     return retrievedInfo.get('cd_tax') == cd_tax
@@ -863,7 +908,7 @@ def modifyTaxo(connection, cd_tax, **putTaxArgs):
             cur.close()
             deleteTaxo(connection,newTax.get('cd_tax'))
             cur=connection.cursor()
-            SQL = "UPDATE taxon SET name=%s, name_auth=%s, auth=%s, tax_rank=%s, cd_sup=%s, cd_syno=%s, status=%s, gbifkey=%s WHERE cd_tax=%s")
+            SQL = "UPDATE taxon SET name=%s, name_auth=%s, auth=%s, tax_rank=%s, cd_sup=%s, cd_syno=%s, status=%s, gbifkey=%s WHERE cd_tax=%s"
             cur.execute(SQL,[newTax.get('name'), newTax.get('name_auth'),newTax.get('auth'),newTax.get('tax_rank'),newTax.get('cd_sup'),newTax.get('cd_syno'),newTax.get('status'),newTax.get('gbifkey'),cd_tax])
             connection.commit()
             cur.close()
