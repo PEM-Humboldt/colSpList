@@ -304,7 +304,7 @@ def test_taxInDb(connection,**kwargs):
         elif (gbifNameInDb_nb == 0):
             infoTax = get_gbif_tax_from_name(kwargs.get('canonicalname'))
         else:
-            raise MissingArgError(missingArg="'scientificname' or 'gbifkey'", message="The name without authorship (canonicalname) corresponds to various taxa in the database, please provide scientific name or gbif taxon key"
+            raise MissingArgError(missingArg="'scientificname' or 'gbifkey'", message="The name without authorship (canonicalname) corresponds to various taxa in the database, please provide scientific name or gbif taxon key")
             #Exception("Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to")
     else:
         raise MissingArgError(missingArg="'scientificname', 'canonicalname' or 'gbifkey'", message= "You did not provide GBIF taxon key nor name with nor without authorship")

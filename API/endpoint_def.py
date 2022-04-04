@@ -14,6 +14,7 @@ import psycopg2
 import psycopg2.extras
 import os
 import input_args
+import errors
 
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
@@ -52,9 +53,9 @@ def get_roles(authenticated):
 
 
 # performance
-class cleanDb(Resource):
-    @use_kwargs(cleanDbArgs,location="query")
-    @use_kwargs(cleanDbArgs,location="json")
+class CleanDb(Resource):
+    @use_kwargs(input_args.CleanDbDeleteArgs,location="query")
+    @use_kwargs(input_args.CleanDbDeleteArgs,location="json")
     @auth.login_required(role=['edit','admin'])
     def delete(self,**cdbArgs):
         cd_taxs=[]
@@ -72,16 +73,16 @@ class cleanDb(Resource):
         conn.close()
         return {'cd_tax':cd_taxs,'cd_refs':cd_refs,'cd_st': cd_status}
         
-class performance(Resource)
-    @use_kwargs(performanceArgs,location="query")
-    @use_kwargs(performanceArgs,location="json")
+class Performance(Resource):
+    @use_kwargs(input_args.PerformancePutArgs,location="query")
+    @use_kwargs(input_args.PerformancePutArgs,location="json")
     @auth.login_required(role=['admin'])
     def put(self,**perfArgs):
         conn=psycopg2.connect(DATABASE_URL, sslmode='require')
         conn.set_isolation_level(0)
         if perfArgs.get('vacuum'):
             SQL = 'VACUUM '
-        if perfArgs.get('analyse')
+        if perfArgs.get('analyse'):
             SQL += 'ANALYSE'
         cur=conn.cursor()
         cur.execute(SQL)
@@ -101,8 +102,8 @@ class User(Resource):
         #return(user)
         return user
     
-    @use_kwargs(newUserArgs,location="query")
-    @use_kwargs(newUserArgs,location="json")
+    @use_kwargs(input_args.UserPostArgs,location="query")
+    @use_kwargs(input_args.UserPostArgs,location="json")
     def post(self, **userArgs):
         conn=psycopg2.connect(DATABASE_URL, sslmode='require')
         newId, username = new_user(conn,**userArgs)
@@ -120,7 +121,7 @@ class User(Resource):
         conn.close()
         return uid
     
-    @use_kwargs(modifyPw,location="json")
+    @use_kwargs(input_args.UserPutArgs,location="json")
     @auth.login_required
     def put(self,**newPassword):
         user=g.get('user')
@@ -135,8 +136,8 @@ class User(Resource):
     
 class AdminUsers(Resource):
     @auth.login_required(role='admin')
-    @use_kwargs(newUserArgs,location="query")
-    @use_kwargs(newUserArgs,location="json")
+    @use_kwargs(input_args.AdminUsersDeleteArgs,location="query")
+    @use_kwargs(input_args.AdminUsersDeleteArgs,location="json")
     def delete(self,**userArgs):
         conn=psycopg2.connect(DATABASE_URL, sslmode='require')
         delId, delUsername = delete_user(conn,**userArgs)
@@ -153,8 +154,8 @@ class AdminUsers(Resource):
         return user_list
     
     @auth.login_required(role='admin')
-    @use_kwargs(modifyUserAdminArgs,location="query")
-    @use_kwargs(modifyUserAdminArgs,location="json")
+    @use_kwargs(input_args.AdminUsersPutArgs,location="query")
+    @use_kwargs(input_args.AdminUsersPutArgs,location="json")
     def put(self,**modifyArgs):
         conn=psycopg2.connect(DATABASE_URL, sslmode='require')
         cur=conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -178,9 +179,9 @@ class AdminUsers(Resource):
         conn.close()
         return res
 
-class getTaxon(Resource):
-    @use_kwargs(taxReconArgs,location="query")
-    @use_kwargs(taxReconArgs,location="json")
+class GetTaxon(Resource):
+    @use_kwargs(input_args.TaxGetArgs,location="query")
+    @use_kwargs(input_args.TaxGetArgs,location="json")
     def get(self, **taxInput):
         conn=psycopg2.connect(DATABASE_URL, sslmode='require')
         if not taxInput.get('cd_tax'):
@@ -188,9 +189,9 @@ class getTaxon(Resource):
         taxOutput = getTax(conn,taxInput.get('cd_tax'))
         return taxOutput
 
-class testEndem(Resource):
-    @use_kwargs(taxInputArgs,location="query")
-    @use_kwargs(taxInputArgs,location="json")
+class TestEndem(Resource):
+    @use_kwargs(input_args.TestEndemGetArgs,location="query")
+    @use_kwargs(input_args.TestEndemGetArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         res = manageInputTax(connection=conn, insert=False, **inputArgs)
@@ -201,9 +202,9 @@ class testEndem(Resource):
         conn.close()
         return res
         
-class testExot(Resource):
-    @use_kwargs(taxInputArgs,location="query")
-    @use_kwargs(taxInputArgs,location="json")
+class TestExot(Resource):
+    @use_kwargs(input_args.TestExotGetArgs,location="query")
+    @use_kwargs(input_args.TestExotGetArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         res = manageInputTax(connection=conn, insert=False, **inputArgs)
@@ -214,9 +215,9 @@ class testExot(Resource):
         conn.close()
         return res
 
-class testThreat(Resource):
-    @use_kwargs(taxInputArgs,location="query")
-    @use_kwargs(taxInputArgs,location="json")
+class TestThreat(Resource):
+    @use_kwargs(input_args.TestThreatGetArgs,location="query")
+    @use_kwargs(input_args.TestThreatGetArgs,location="json")
     def get(self, **inputArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         res = manageInputTax(connection=conn, insert=False,**inputArgs)
@@ -227,9 +228,9 @@ class testThreat(Resource):
         conn.close()
         return res
 
-class listExot(Resource):
-    @use_kwargs(getListArgs,location="query")
-    @use_kwargs(getListArgs,location="json")
+class ListExot(Resource):
+    @use_kwargs(input_args.ListExotGetArgs,location="query")
+    @use_kwargs(input_args.ListExotGetArgs,location="json")
     def get(self, **listArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         if listArgs.get('childrenOf'):
@@ -255,9 +256,9 @@ class listExot(Resource):
         else:
             return res
             
-class listEndem(Resource):
-    @use_kwargs(getListArgs,location="query")
-    @use_kwargs(getListArgs,location="json")
+class ListEndem(Resource):
+    @use_kwargs(input_args.ListEndemGetArgs,location="query")
+    @use_kwargs(input_args.ListEndemGetArgs,location="json")
     def get(self, **listArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         if listArgs.get('childrenOf'):
@@ -283,9 +284,9 @@ class listEndem(Resource):
         else:
             return res
 
-class listThreat(Resource):
-    @use_kwargs(getListArgs,location="query")
-    @use_kwargs(getListArgs,location="json")
+class ListThreat(Resource):
+    @use_kwargs(input_args.ListThreatGetArgs,location="query")
+    @use_kwargs(input_args.ListThreatGetArgs,location="json")
     def get(self, **listArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         if listArgs.get('childrenOf'):
@@ -311,9 +312,9 @@ class listThreat(Resource):
         else:
             return res
 
-class listTax(Resource):
-    @use_kwargs(getListArgs,location="query")
-    @use_kwargs(getListArgs,location="json")
+class ListTax(Resource):
+    @use_kwargs(input_args.ListTaxGetArgs,location="query")
+    @use_kwargs(input_args.ListTaxGetArgs,location="json")
     def get(self, **listArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         if listArgs.get('childrenOf'):
@@ -339,9 +340,9 @@ class listTax(Resource):
         else:
             return res
 
-class listReferences(Resource):
-    @use_kwargs(getListRefArgs,location="query")
-    @use_kwargs(getListRefArgs,location="json")
+class ListReferences(Resource):
+    @use_kwargs(input_args.ListReferencesGetArgs,location="query")
+    @use_kwargs(input_args.ListReferencesGetArgs,location="json")
     def get(self, **listRefArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         listRef = getListReferences(connection=conn, formatExport= listRefArgs.get('format'), onlyEndem= listRefArgs.get('onlyEndem'), onlyExot= listRefArgs.get('onlyExot'), onlyThreat= listRefArgs.get('onlyThreat'))
@@ -352,29 +353,35 @@ class listReferences(Resource):
         else:
             return listRef
 
-class insertEndem(Resource):
+class ManageEndem(Resource):
     @auth.login_required(role='edit')
-    @use_kwargs(inputEndemArgs)
+    @use_kwargs(input_args.ManageEndemPostArgs)
     def post(self,**inputEndem):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         res = manageInputTax(connection=conn, insert=True,**inputEndem)
         res.update(manageInputEndem(res.get('cd_tax_acc'), connection = conn, **inputEndem))
         return res
     
-    
-
-class insertExot(Resource):
     @auth.login_required(role='edit')
-    @use_kwargs(inputExotArgs)
+    def delete(self,**inputEndem):
+        pass
+    
+    @auth.login_required(role='edit')
+    def put(self,**inputEndem):
+        pass
+
+class ManageExot(Resource):
+    @auth.login_required(role='edit')
+    @use_kwargs(input_args.ManageExotPostArgs)
     def post(self, **inputExot):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         res = manageInputTax(connection=conn, insert=True, **inputExot)
         res.update(manageInputExot(res.get('cd_tax_acc'), connection = conn, **inputExot))
         return res
     
-class insertThreat(Resource):
+class ManageThreat(Resource):
     @auth.login_required(role='edit')
-    @use_kwargs(inputThreatArgs)
+    @use_kwargs(input_args.ManageThreatPostArgs)
     def post(self, **inputThreat):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         res = manageInputTax(connection=conn, insert=True,**inputThreat)
@@ -382,9 +389,9 @@ class insertThreat(Resource):
         conn.close()
         return res
 
-class insertTaxo(Resource):
+class ManageTax(Resource):
     @auth.login_required(role='edit')
-    @use_kwargs(taxInputArgs)
+    @use_kwargs(input_args.ManageTaxoPostArgs)
     def post(self,**dictInput):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         res = manageInputTax(connection=conn, insert=True,**dictInput)
@@ -392,7 +399,7 @@ class insertTaxo(Resource):
         return res
     
     @auth.login_required(role='edit')
-    @use_kwargs(delTaxoArgs)
+    @use_kwargs(input_args.ManageTaxoDeleteArgs)
     def delete(self,**delTaxArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         cd_tax = delTaxArgs.get('cd_tax')
@@ -404,7 +411,7 @@ class insertTaxo(Resource):
         return res
         
     @auth.login_required(role='edit')
-    @use_kwargs(putTaxoArgs)
+    @use_kwargs(input_args.ManageTaxoPutArgs)
     def put(self,**putTaxArgs):
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         cd_tax = putTaxArgs.get('cd_tax')
@@ -412,6 +419,8 @@ class insertTaxo(Resource):
         conn.close()
         return res
 
+class ManageRef(Resource):
+    pass
     
 # This error handler is necessary for usage with Flask-RESTful
 @parser.error_handler

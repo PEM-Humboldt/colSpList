@@ -55,7 +55,7 @@ class AlreadyExistsDbError(DatabaseUncompatibilityError):
     def __str__(self):
         return f'{self.field} {self.value} {self.message}'
 
-class DeleteMissingElementDbError(DatabaseUncompabilityError):
+class DeleteMissingElementDbError(DatabaseUncompatibilityError):
     def __init__(self, value, field, message="does not exist in the database: impossible to delete"):
         self.value = value
         self.field = field
@@ -65,7 +65,7 @@ class DeleteMissingElementDbError(DatabaseUncompabilityError):
     def __str__(self):
         return f'{self.field} {self.value} {self.message}'
 
-class ModifyMissingStatusDbError(DatabaseUncompabilityError):
+class ModifyMissingStatusDbError(DatabaseUncompatibilityError):
     def __init__(self, cd_tax, statustype, message="impossible to modify"):
         self.cd_tax = cd_tax
         self.statustype = statustype
@@ -75,7 +75,7 @@ class ModifyMissingStatusDbError(DatabaseUncompabilityError):
     def __str__(self):
         return f'Taxon {self.cd_tax} does not have a {self.statustype} status in the database: {self.message}'
 
-class TaxonNotFoundDbError(DatabaseUncompabilityError):
+class TaxonNotFoundDbError(DatabaseUncompatibilityError):
     def __init__(self, tax, message="Taxon not recognized"):
         self.tax = tax
         self.message = message
@@ -84,7 +84,7 @@ class TaxonNotFoundDbError(DatabaseUncompabilityError):
     def __str__(self):
         return f'{self.message}: taxon {self.tax} was not found in the database'
 
-class GrantExistingRightError(DatabaseUncompabilityError):
+class GrantExistingRightError(DatabaseUncompatibilityError):
     def __init__(self, user, right, message="Attempt to grant existing right"):
         self.user = user
         self.right = right
@@ -94,7 +94,7 @@ class GrantExistingRightError(DatabaseUncompabilityError):
     def __str__(self):
         return f'{self.message}: user {self.user} already has {self.right} rights'
 
-class RevokeUnexistingRightError(DatabaseUncompabilityError):
+class RevokeUnexistingRightError(DatabaseUncompatibilityError):
     def __init__(self, user, right, message="Attempt to revoke unexisting right"):
         self.user = user
         self.right = right
@@ -113,7 +113,7 @@ class UncompatibilityGbifKeyCanonicalname(DatabaseUncompatibilityError):
         super().__init__(self.message)
 
     def __str__(self):
-        return f'{self.message} (gbifkey: {self.gbifkey}, canonicalname: {self.canonicalname}, name found from gbifkey: self.name_gbifkey)'
+        return f'{self.message} (gbifkey: {self.gbifkey}, canonicalname: {self.canonicalname}, name found from gbifkey: {self.name_gbifkey})'
 
 class DbIntegrityError(Exception):
     def __init__(self, value=None, field=None ,message="Database integrity Error"):
@@ -135,7 +135,7 @@ class UncompatibleStatusError(ValueError):
         super().__init__(self.message)
 
     def __str__(self):
-        return f'{self.message} (database status: {str(self.dbStatus)}, canonicalname: {str(self.providedStatus}))'
+        return f'{self.message} (database status: {str(self.dbStatus)}, canonicalname: {str(self.providedStatus)})'
     
 class UnauthorizedValueError(ValueError):
     def __init__(self, value=None, var=None, acceptable=[], message="Variable value out of authorized range"):

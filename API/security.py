@@ -5,7 +5,7 @@ import psycopg2.extras
 import os
 from passlib.apps import custom_app_context as pwd_context
 from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
-import error
+import errors
 
 def hash_password(password):
     password_hash = pwd_context.hash(password)
