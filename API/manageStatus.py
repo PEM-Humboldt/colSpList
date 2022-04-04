@@ -109,7 +109,12 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
     nb = cur.fetchone()['count']
     compatible = bool(nb)
     if (not compatible):
-        raise Exception("The input threat status is not recognized")
+        SQL="SELECT cd_status FROM threat_status"
+        cur.execute(SQL)
+        res=cur.fetchall()
+        acceptableThreatStatus= [r['cd_status'] for r in res]
+        raise UnauthorizedValueError(value=inputThreat.get('threatstatus'), var="threatstatus", acceptable=acceptableThreatStatus, message="The input threat status is not recognized")
+        #raise Exception("The input threat status is not recognized")
     else:
         # find the threat status if it exists in the database
         SQL = "SELECT count(*) FROM threat WHERE cd_tax=%s"
@@ -123,12 +128,14 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
                     cur.close()
                     return modifyThreat(cd_tax,connection,**inputThreat)
                 if inputThreat.get('priority')!='low':
-                    raise Exception('unrecognisedPriority')
+                    raise UnauthorizedValueError(value=inputThreat.get('priority'), var='priority',acceptable=['low','high'])
+                    #Exception('unrecognisedPriority')
             else:
                 threatStatus = getThreatStatus(cur,cd_tax)
                 sameStatus = (threatStatus.get('cd_status') == inputThreat['threatstatus'])
                 if(not sameStatus):
-                    raise Exception("The taxon already exists in the database with another threat status")
+                    raise UncompatibleStatusError(dbStatus=threatStatus.get('cd_status'), providedStatus=inputThreat.get('threatstatus'))
+                    #Exception("The taxon already exists in the database with another threat status")
     cur.close()
     with connection:
         with connection.cursor() as cur:
@@ -157,7 +164,8 @@ def deleteThreat(cd_tax,connection,**inputThreat):
         cur.execute(SQL,[cd_tax,inputThreat.get('cd_ref')])
         cd_refs = [cd_ref]
     else:
-        raise Exception('noCdRefNorDeletestatus')
+        raise MissingArgError(missingArg="'cd_ref' or 'delete_status'",message='Do you want to suppress the status (\'delete_status\'=True) or just a reference associated with the status (provide \'cd_ref\')')
+        #Exception('noCdRefNorDeletestatus')
     connection.commit()
     cur.close()
     return {'cd_tax': cd_tax, 'cd_refs': cd_refs}
@@ -169,7 +177,12 @@ def modifyThreat(cd_tax,connection,**inputThreat):
     nb = cur.fetchone()['count']
     compatible = bool(nb)
     if (not compatible):
-        raise Exception("The input threat status is not recognized")
+        SQL="SELECT cd_status FROM threat_status"
+        cur.execute(SQL)
+        res=cur.fetchall()
+        acceptableThreatStatus= [r['cd_status'] for r in res]
+        raise UnauthorizedValueError(value=inputThreat.get('threatstatus'), var="threatstatus", acceptable=acceptableThreatStatus)
+        #Exception("The input threat status is not recognized")
     else:
         # find the threat status if it exists in the database
         SQL = "SELECT count(*) FROM threat WHERE cd_tax=%s"
@@ -177,7 +190,8 @@ def modifyThreat(cd_tax,connection,**inputThreat):
         nb = cur.fetchone()['count']
         statusExists = bool(nb)
         if not statusExists:
-            raise Exception('noStatus')
+            raise ModifyMissingStatusDbError(cd_tax=cd_tax,statustype='threat')
+            #Exception('noStatus')
     cur.close()
     with connection:
         with connection.cursor() as cur:
@@ -243,7 +257,12 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
     nb = cur.fetchone()['count']
     compatible = bool(nb)
     if (not compatible):
-        raise Exception("The input endemic status is not recognized")
+        SQL="SELECT descr_endem_es AS cd_status FROM nivel_endem UNION SELECT descr_endem_en AS cd_status FROM nivel_endem UNION SELECT cd_nivel::text AS cd_status FROM nivel_endem"
+        cur.execute(SQL)
+        res=cur.fetchall()
+        acceptableEndemStatus= [r['cd_status'] for r in res]
+        raise UnauthorizedValueError(value=inputEndem.get('endemstatus'), var="endemstatus", acceptable=acceptableEndemStatus, message="The input endemic status is not recognized")
+        #raise Exception("The input endemic status is not recognized")
     else:
         # Getting status code
         SQL = "WITH e AS (SELECT %s::text AS nivel) SELECT cd_nivel FROM nivel_endem,e WHERE descr_endem_es = e.nivel OR descr_endem_en = e.nivel OR cd_nivel::text=e.nivel"
@@ -261,11 +280,13 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
                     cur.close()
                     return modifyEndem(cd_tax,connection,**inputEndem)
                 if inputEndem.get('priority')!='low':
-                    raise Exception('unrecognisedPriority')
+                    raise UnauthorizedValueError(value=inputThreat.get('priority'), var='priority',acceptable=['low','high'])
+                    #raise Exception('unrecognisedPriority')
             threatStatus = getEndemStatus(cur,cd_tax)
             sameStatus = (endemStatus.get('cd_status') == inputEndem['endemstatus'])
             if(not sameStatus):
-                raise Exception("The taxon already exists in the database with another endemic status")
+                raise UncompatibleStatusError(dbStatus=endemStatus.get('cd_status'), providedStatus=inputEndem.get('endemstatus'))
+                #raise Exception("The taxon already exists in the database with another endemic status")
     cur.close()
     with connection:
         with connection.cursor() as cur:
@@ -294,7 +315,8 @@ def deleteEndem(cd_tax,connection,**inputEndem):
         cur.execute(SQL,[cd_tax,inputEndem.get('cd_ref')])
         cd_refs = [cd_ref]
     else:
-        raise Exception('noCdRefNorDeletestatus')
+        raise MissingArgError(missingArg="'cd_ref' or 'delete_status'",message='Do you want to suppress the status (\'delete_status\'=True) or just a reference associated with the status (provide \'cd_ref\')?')
+        #raise Exception('noCdRefNorDeletestatus')
     connection.commit()
     cur.close()
     return {'cd_tax': cd_tax, 'cd_refs': cd_refs}
@@ -306,7 +328,11 @@ def modifyEndem(cd_tax,connection,**inputEndem):
     nb = cur.fetchone()['count']
     compatible = bool(nb)
     if (not compatible):
-        raise Exception("The input endem status is not recognized")
+        SQL="SELECT descr_endem_es AS cd_status FROM nivel_endem UNION SELECT descr_endem_en AS cd_status FROM nivel_endem UNION SELECT cd_nivel::text AS cd_status FROM nivel_endem"
+        cur.execute(SQL)
+        res=cur.fetchall()
+        acceptableEndemStatus= [r['cd_status'] for r in res]
+        raise UnauthorizedValueError(value=inputEndem.get('endemstatus'), var="endemstatus", acceptable=acceptableEndemStatus, message="The input endemic status is not recognized")
     else:
         SQL = "WITH e AS (SELECT %s::text AS nivel) SELECT cd_nivel FROM nivel_endem,e WHERE descr_endem_es = e.nivel OR descr_endem_en = e.nivel OR cd_nivel::text=e.nivel"
         cur.execute(SQL,[inputEndem.get('endemstatus')])
@@ -317,7 +343,8 @@ def modifyEndem(cd_tax,connection,**inputEndem):
         nb = cur.fetchone()['count']
         statusExists = bool(nb)
         if not statusExists:
-            raise Exception('noStatus')
+            raise ModifyMissingStatusDbError(cd_tax=cd_tax,statustype='endemic')
+            #raise Exception('noStatus')
     cur.close()
     with connection:
         with connection.cursor() as cur:
@@ -393,11 +420,13 @@ def manageInputExot(cd_tax,connection,**inputExot):
                 cur.close()
                 return modifyExot(cd_tax,connection,**inputExot)
             if inputExot.get('priority')!='low':
-                raise Exception('unrecognisedPriority')
+                raise UnauthorizedValueError(value=inputThreat.get('priority'), var='priority',acceptable=['low','high'])
+                #raise Exception('unrecognisedPriority')
         else:
             exotStatus = getExotStatus(cur,cd_tax)
             sameStatus = (inputExot.get('is_alien') == exotStatus['is_alien']) and (inputExot.get('is_invasive') == exotStatus['is_invasive'])   
             if(not sameStatus):
+                raise UncompatibleStatusError(dbStatus={'is_alien': exotStatus['is_alien'], 'is_invasive': exotStatus['is_invasive']}, providedStatus={'is_alien': inputExot['is_alien'], 'is_invasive': inputExot['is_invasive']})
                 raise Exception("The taxon already exists in the database with another threat status")    
     cur.close()
     with connection:
@@ -427,7 +456,8 @@ def deleteExot(cd_tax,connection,**inputExot):
         cur.execute(SQL,[cd_tax,inputExot.get('cd_ref')])
         cd_refs = [cd_ref]
     else:
-        raise Exception('noCdRefNorDeletestatus')
+        raise MissingArgError(missingArg="'cd_ref' or 'delete_status'",message='Do you want to suppress the status (\'delete_status\'=True) or just a reference associated with the status (provide \'cd_ref\')?')
+        #raise Exception('noCdRefNorDeletestatus')
     connection.commit()
     cur.close()
     return {'cd_tax': cd_tax, 'cd_refs': cd_refs}
@@ -440,7 +470,8 @@ def modifyExot(cd_tax,connection,**inputExot):
     nb = cur.fetchone()['count']
     statusExists = bool(nb)
     if not statusExists:
-        raise Exception('noStatus')
+        raise ModifyMissingStatusDbError(cd_tax=cd_tax,statustype='exotic')
+        #raise Exception('noStatus')
     cur.close()
     with connection:
         with connection.cursor() as cur:

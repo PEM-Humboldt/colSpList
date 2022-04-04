@@ -247,7 +247,7 @@ def test_taxInDb(connection,**kwargs):
         Since there is no UNIQUE constraint on the "name" field of the taxon table in the database, it is potentially possible that 2 taxa from the database share the same canonical name (with 2 different authorships though). In that case it is impossible to know which of the taxa is referred to, and the function stop, raising this error
     Exception:
         "Either 'gbifkey', or 'scientificname', or 'canonicalname' should be included in the parameters in order to be able to identify the taxon"
-        If none of the parameters necessary to identify the taxon are given as parameters in the kwargs dictionary the function stops and raise this exception
+        If none of the parameters necessary to identify the taxon are given as parameters in the kwargs dictionary the function stops and raises this exception
     """
     cur = connection.cursor()
     alreadyInDb = False
@@ -265,15 +265,17 @@ def test_taxInDb(connection,**kwargs):
                 nameTaxDb, = cur.fetchone()
                 diffTaxName = fuzz.ratio(nameTaxDb,kwargs.get('canonicalname'))
                 if (diffTaxName < 0.75):
-                    raise Exception("Name of the taxon does not correspond to gbifkey")
+                    raise UncompatibilityGbifKeyCanonicalname(gbifkey = kwargs.get('gbifkey'), canonicalname = kwargs.get('canonicalname'), name_gbifkey = nameTaxDb)
+                    #raise Exception("Name of the taxon does not correspond to gbifkey")
             alreadyInDb = True
             SQL = "SELECT cd_tax FROM taxon WHERE gbifkey = %s"
             cur.execute(SQL,[kwargs.get('gbifkey')])
             cdTax,  = cur.fetchone()
         elif (gbifKeyInDb_nb == 0):
-            None
+            pass
         else :
-            raise Exception("gbifkey more than once in the database, should not be possible!")
+            raise DbIntegrityError(value=kwargs.get('gbifkey'), field="'gbifkey'", message='gbifkey present more than once in the database')
+            #raise Exception("gbifkey more than once in the database, should not be possible!")
     elif (kwargs.get('scientificname') is not None):
         SQL = "SELECT count(*) AS nb FROM taxon WHERE name_auth = %s"
         cur.execute(SQL,[kwargs.get('scientificname')])
@@ -287,7 +289,8 @@ def test_taxInDb(connection,**kwargs):
         elif (gbifSciInDb_nb == 0):
             infoTax = get_gbif_tax_from_sci_name(kwargs.get('scientificname'))
         else:
-            raise Exception("Name (with author) in the database more than once, should not be possible!")
+            raise dbIntegrityError(value=kwargs.get('scientificname'), field="'name_auth'", message='name_auth (scientificname) present more than once in the database')
+            #raise Exception("Name (with author) in the database more than once, should not be possible!")
     elif (kwargs.get('canonicalname') is not None):
         SQL = "SELECT count(*) AS nb FROM taxon WHERE name =%s"
         cur.execute(SQL,[kwargs.get('canonicalname')])
@@ -301,9 +304,11 @@ def test_taxInDb(connection,**kwargs):
         elif (gbifNameInDb_nb == 0):
             infoTax = get_gbif_tax_from_name(kwargs.get('canonicalname'))
         else:
-            raise Exception("Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to")
+            raise MissingArgError(missingArg="'scientificname' or 'gbifkey'", message="The name without authorship (canonicalname) corresponds to various taxa in the database, please provide scientific name or gbif taxon key"
+            #Exception("Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to")
     else:
-        raise Exception("Either 'gbifkey', or 'scientificname', or 'canonicalname' should be included in the parameters in order to be able to identify the taxon")
+        raise MissingArgError(missingArg="'scientificname', 'canonicalname' or 'gbifkey'", message= "You did not provide GBIF taxon key nor name with nor without authorship")
+        #Exception("Either 'gbifkey', or 'scientificname', or 'canonicalname' should be included in the parameters in order to be able to identify the taxon")
     cur.close()
     return {'alreadyInDb': alreadyInDb, 'gbifMatchMode': gbifMatchMode, 'cdTax': cdTax}
 
@@ -344,7 +349,8 @@ def get_infoTax(**kwargs):
     elif (kwargs.get('gbifMatchMode') == 'scientificname'):
         infoTax = get_gbif_tax_from_sci_name(kwargs.get('scientificname'))
     else:
-        raise Exception("No acceptable gbifMatchMode were provided")
+        raise UnauthorizedValueError(value=kwargs.get(gbifMatchMode), var='gbifMatchMode', acceptable=['gbifkey','scientificname','canonicalname'])
+        #raise Exception("No acceptable gbifMatchMode were provided")
     if(kwargs.get('gbifMatchMode') in ('scientificname','canonicalname')):
         if(infoTax.get("matchType") != "NONE" and(infoTax.get("matchType") == "EXACT" or infoTax.get('confidence') >=90)):
             foundGbif = True
@@ -455,7 +461,8 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
         if(hasSciName):
             parsed = get_gbif_parsed_from_sci_name(inputTax.get('scientificname'))
             if(not parsed.get('parsed')):
-                raise Exception("Name not found in GBIF and information insufficient to integrate in the database")
+                raise MissingArgError(MissingArg="'scientificname' and 'authorship'", message="Name not found in GBIF API and parsing method from GBIF API does not allow to extract sufficient information")
+                #raise Exception("Name not found in GBIF and information insufficient to integrate in the database")
         else:
             parsed = get_gbif_parsed_from_sci_name(inputTax.get('canonicalname'))
         name=parsed.get('canonicalNameComplete')
@@ -464,7 +471,8 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
             if(parsed.get('rankMarker') is not None):
                 rank, level_rank = get_rank(connection,parsed.get('rankMarker'))
             else:
-                raise Exception("No way to determine the taxon rank")
+                raise MissingArgError(missingArg="'tax_rank'", message="Rank was not provided, taxon not found in GBIF and extraction from name was impossible from the GBIF API parsing method")
+                #raise Exception("No way to determine the taxon rank")
         else:
             rank, level_rank = get_rank(connection,inputTax.get('rank'))
         if(parentTax.get('canonicalname') is None):
@@ -474,7 +482,8 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
                 parentTax['canonicalname'] = parsed.get('genusOrAbove')
             else:
                 if(not hasSup and not syno):
-                    raise Exception("No sure way to determine the superior taxon")
+                    raise MissingArgError(missingArg="'parentcanonicalname' or 'parentscientificname' or 'parentgbifkey'",message="Taxon not found in GBIF, no parent information provided and parent is not guessable from name provided")
+                    #raise Exception("No sure way to determine the superior taxon")
     if(not hasAuth and name in name_auth):
         extractAuth = name_auth.replace(name,'')
         auth = re.sub("^ *(.+) *$","\1",extractAuth)
@@ -730,7 +739,7 @@ def manageInputTax(connection, insert, **inputTax):
             if(accepted.get('gbifkey') is None):
                 parentTax.update(get_infoTax(**parentTax))
                 if (not parentTax.get('foundGbif')):
-                    raise Exception('Parent taxa not found')
+                    raise MissingArgError(missingArg="'parentcanonicalname' or 'parentscientificname' or 'parentgbifkey'", message="Parent taxon not found in GBIF")
                 parents = get_gbif_parent(parentTax.get('key'))
                 parents.append(parentTax)
             else:
@@ -899,7 +908,8 @@ def modifyTaxo(connection, cd_tax, **putTaxArgs):
         insert=manageInputTax(connection=connection,insert=T,**{'gbifkey':putTaxArgs.get('gbifkey')})
         inserted+=insert.get('insertedTax')
         if insert.get('alreadyInDb'):
-            raise Exception('NewGbifkeyAlreadypresent')
+            raise AlreadyExistsDbError(value=putTaxArgs.get('gbifkey'),field="gbifkey")
+            #raise Exception('NewGbifkeyAlreadypresent')
         else:
             cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             SQL = "SELECT * FROM taxon WHERE cd.tax=%s"

@@ -244,7 +244,8 @@ class listExot(Resource):
                 cursor.close()
                 res=getListExot(connection=conn, listChildren=listChildren, formatExport=listArgs.get('format'))
             else:
-                raise Exception("childrenOfNotFound")
+                raise TaxonNotFoundDbError(tax=listArgs.get('childrenOf'), message='\'childrenOf\' taxon not recognized')
+                #raise Exception("childrenOfNotFound")
         else:
             res = getListExot(connection=conn, listChildren=[], formatExport=listArgs.get('format'))
         conn.close()
@@ -271,7 +272,8 @@ class listEndem(Resource):
                 cursor.close()
                 res=getListEndem(connection=conn, listChildren=listChildren, formatExport=listArgs.get('format'))
             else:
-                raise Exception("childrenOfNotFound")
+                raise TaxonNotFoundDbError(tax=listArgs.get('childrenOf'), message='\'childrenOf\' taxon not recognized')
+                #raise Exception("childrenOfNotFound")
         else:
             res = getListEndem(connection=conn, listChildren=[], formatExport=listArgs.get('format'))
         conn.close()
@@ -298,7 +300,8 @@ class listThreat(Resource):
                 cursor.close()
                 res=getListThreat(connection=conn, listChildren=listChildren, formatExport=listArgs.get('format'))
             else:
-                raise Exception("childrenOfNotFound")
+                raise TaxonNotFoundDbError(tax=listArgs.get('childrenOf'), message='\'childrenOf\' taxon not recognized')
+                #raise Exception("childrenOfNotFound")
         else:
             res = getListThreat(connection=conn, listChildren=[], formatExport=listArgs.get('format'))
         conn.close()
@@ -325,7 +328,8 @@ class listTax(Resource):
                 cursor.close()
                 res=getListTax(connection=conn, listChildren=listChildren, formatExport=listArgs.get('format'))
             else:
-                raise Exception("childrenOfNotFound")
+                raise TaxonNotFoundDbError(tax=listArgs.get('childrenOf'), message='\'childrenOf\' taxon not recognized')
+                #raise Exception("childrenOfNotFound")
         else:
             res = getListTax(connection=conn, listChildren=[], formatExport=listArgs.get('format'))
         conn.close()

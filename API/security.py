@@ -4,7 +4,8 @@ import psycopg2
 import psycopg2.extras
 import os
 from passlib.apps import custom_app_context as pwd_context
-from itsdangerous import (TimedJSONWebSignatureSerializer                          as Serializer, BadSignature, SignatureExpired)
+from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
+import error
 
 def hash_password(password):
     password_hash = pwd_context.hash(password)
@@ -24,7 +25,7 @@ def get_user(cursor, get_hash=False, **user):
         SQL = "SELECT * FROM users WHERE username=%s"
         cursor.execute(SQL,[user.get('username')])
     else:
-        raise Exception("Impossible to get the user information without id or username")
+        raise MissingArgError(missingArg= "'id' or 'username'")
     res = dict(cursor.fetchone())
     user= dict((k, res[k]) for k in ['id','username'] if k in res)
     user['roles'] = list()
@@ -53,11 +54,11 @@ def new_user(connection,**userArgs):
     username = userArgs.get('username')
     password = userArgs.get('password')
     if username is None:
-        raise Exception("No username provided")
+        raise MissingArgError(missingArg="'username'")
     if password is None:
-        raise Exception("No password provided")
+        raise MissingArgError(missingArg="'password'")
     if user_exists(cur,username):
-        raise Exception("User already exists")
+        raise alreadyExistsDbError(value=username, field='username')
     hash_pw = hash_password(password)
     newId = insert_user(cur,username,hash_pw)
     connection.commit()
@@ -68,7 +69,7 @@ def delete_user(connection, **userArgs):
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     username = userArgs.get('username')
     if(not user_exists(cur,username)):
-        raise Exception("Attempt to deleting an inexisting user")
+        raise DeleteMissinfElementDbError(value=username, field='username')
     user = get_user(cur, get_hash=False, **userArgs)
     SQL = "DELETE FROM users WHERE id=%s RETURNING id"
     cur.execute(SQL,[user.get('id')])
@@ -80,7 +81,7 @@ def delete_user(connection, **userArgs):
 def grant_user(cursor, **userArgs):
     user=get_user(cursor, get_hash=False, **userArgs)
     if 'user' in user.get('roles'):
-        raise Exception("This user was already an API user")
+        raise GrantExistingRightError(user=user.get('username'), right='user')
     uid=user.get('id')
     SQL = "UPDATE users SET apiuser = TRUE WHERE id=%s RETURNING id"
     cursor.execute(SQL,[uid])
@@ -90,7 +91,7 @@ def grant_user(cursor, **userArgs):
 def revoke_user(cursor, **userArgs):
     user=get_user(cursor, get_hash=False, **userArgs)
     if 'user' in user.get('roles'):
-        raise Exception("This user was not an API user")
+        raise RevokeUnexistingRightError(user=user.get('username'),right='user')
     uid=user.get('id')
     SQL = "UPDATE users SET apiuser = FALSE WHERE id=%s RETURNING id"
     cursor.execute(SQL,[uid])
@@ -100,7 +101,7 @@ def revoke_user(cursor, **userArgs):
 def grant_edit(cursor, **userArgs):
     user=get_user(cursor, get_hash=False, **userArgs)
     if 'edit' in user.get('roles'):
-        raise Exception("This user had already been granted edition rights")
+        raise GrantExistingRightError(user=user.get('username'), right='edit')
     uid=user.get('id')
     SQL = "UPDATE users SET edit_auth = TRUE WHERE id=%s RETURNING id"
     cursor.execute(SQL,[uid])
@@ -110,7 +111,7 @@ def grant_edit(cursor, **userArgs):
 def revoke_edit(cursor, **userArgs):
     user=get_user(cursor, get_hash=False, **userArgs)
     if not 'edit' in user.get('roles'):
-        raise Exception("This user had no edition rights")
+        raise RevokeUnexistingRightError(user=user.get('username'),right='edit')
     uid=user.get('id')
     SQL = "UPDATE users SET edit_auth = FALSE WHERE id=%s RETURNING id"
     cursor.execute(SQL,[uid])
@@ -120,7 +121,7 @@ def revoke_edit(cursor, **userArgs):
 def grant_admin(cursor, **userArgs):
     user=get_user(cursor, get_hash=False, **userArgs)
     if 'admin' in user.get('roles'):
-        raise Exception("This user was already an API user")
+        raise GrantExistingRightError(user=user.get('username'), right='admin')
     uid=user.get('id')
     SQL = "UPDATE users SET admin = TRUE WHERE id=%s RETURNING id"
     cursor.execute(SQL,[uid])
@@ -130,7 +131,7 @@ def grant_admin(cursor, **userArgs):
 def revoke_admin(cursor, **userArgs):
     user=get_user(cursor, get_hash=False, **userArgs)
     if not 'admin' in user.get('roles'):
-        raise Exception("This user was already an API user")
+        raise RevokeUnexistingRightError(user=user.get('username'),right='admin')
     uid=user.get('id')
     SQL = "UPDATE users SET admin = FALSE WHERE id=%s RETURNING id"
     cursor.execute(SQL,[uid])
@@ -140,7 +141,7 @@ def revoke_admin(cursor, **userArgs):
 def change_password(cursor, **userArgs):
     user=get_user(cursor, **userArgs)
     if userArgs.get('newPassword') is None:
-        raise Exception("Impossible to change the password without a new password")
+        raise MissingArgError(missingArg="'newPassword'")
     new_hash=hash_password(userArgs.get('newPassword'))
     SQL = "UPDATE users SET password_hash=%s WHERE id=%s RETURNING id"
     cursor.execute(SQL,[new_hash,user.get('id')])
