@@ -15,6 +15,7 @@ from io import BytesIO
 from flask import send_file
 from fuzzywuzzy import fuzz
 from manageStatus import manageSource
+from errors_def import MissingArgError, DatabaseUncompatibilityValueError, DatabaseUncompatibilityError, AlreadyExistsDbError, DeleteMissingElementDbError, ModifyMissingStatusDbError, TaxonNotFoundDbError, GrantExistingRightError, RevokeUnexistingRightError, UncompatibilityGbifKeyCanonicalname, DbIntegrityError, UncompatibleStatusError, UnauthorizedValueError
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
@@ -304,8 +305,8 @@ def test_taxInDb(connection,**kwargs):
         elif (gbifNameInDb_nb == 0):
             infoTax = get_gbif_tax_from_name(kwargs.get('canonicalname'))
         else:
+            """Exception("Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to")"""
             raise MissingArgError(missingArg="'scientificname' or 'gbifkey'", message="The name without authorship (canonicalname) corresponds to various taxa in the database, please provide scientific name or gbif taxon key")
-            #Exception("Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to")
     else:
         raise MissingArgError(missingArg="'scientificname', 'canonicalname' or 'gbifkey'", message= "You did not provide GBIF taxon key nor name with nor without authorship")
         #Exception("Either 'gbifkey', or 'scientificname', or 'canonicalname' should be included in the parameters in order to be able to identify the taxon")
@@ -355,6 +356,8 @@ def get_infoTax(**kwargs):
         if(infoTax.get("matchType") != "NONE" and(infoTax.get("matchType") == "EXACT" or infoTax.get('confidence') >=90)):
             foundGbif = True
             infoTax.update(get_gbif_tax_from_id(infoTax.get('usageKey')))
+        else:
+            infoTax={}
     # We need to update the information as well if the taxon is of a level lower than species, because canonicalnames are given without markers, which is not the way it is in the species lists
     if(foundGbif and infoTax.get('rank') in ('SUBSPECIES','VARIETY','FORM','SUBVARIETY','SUPERSPECIES','SUBGENUS','TRIBE')):
         infoTax.update(get_gbif_parsed_from_sci_name(infoTax.get('scientificName')))
@@ -779,7 +782,7 @@ def manageInputTax(connection, insert, **inputTax):
             res.update({'cd_tax': infoDb.get('cd_tax'), 'cd_tax_acc': infoDbAccepted.get('cd_tax') ,'alreadyInDb':True, 'foundGbif': bool(infoDb.get('gbifkey')), 'matchedname': matchedname, 'acceptedname':infoDbAccepted.get('scientificname'), 'gbifkey':infoDb.get('gbifkey'),'syno':True, 'insertedTax': insertedTax})
         else:
             res.update({'cd_tax': infoDb.get('cd_tax'), 'cd_tax_acc': infoDb.get('cd_tax'), 'alreadyInDb':True, 'foundGbif': bool(infoDb.get('gbifkey')), 'matchedname': matchedname, 'acceptedname':infoDb.get('scientificname'), 'gbifkey':infoDb.get('gbifkey'),'syno':False, 'insertedTax':insertedTax})
-    else:
+    else: #(not already in database)
         if insert and syno:
             res.update({'cd_tax':synoId, 'cd_tax_acc': accId})
         if insert and not syno:
@@ -789,7 +792,8 @@ def manageInputTax(connection, insert, **inputTax):
                 matchedname = inputTax.get('canonicalName')
             else:
                 matchedname = inputTax.get('scientificName')
-        res.update({'alreadyInDb': False, 'foundGbif':inputTax.get('foundGbif'), 'matchedname':matchedname,'syno':syno,'gbifkey':inputTax.get('key'),'insertedTax':insertedTax})
+            res.update({'matchedname':matchedname,'gbifkey':inputTax.get('key')})
+        res.update({'alreadyInDb': False, 'foundGbif': inputTax.get('foundGbif'), 'syno':syno, 'insertedTax':insertedTax})
         if syno:
             if acceptedTax.get('alreadyInDb'):
                 infoDbAccepted = get_db_tax(connection,acceptedTax.get('cdTax'))
@@ -802,13 +806,13 @@ def manageInputTax(connection, insert, **inputTax):
                         res.update({'acceptedname':acceptedTax.get('scientificname')})
                     else:
                         res.update({'acceptedname':acceptedTax.get('canonicalname')})
-        else:
+        else:#(not syno, not in database)
             if inputTax.get('scientificName'):
-                res.update({'acceptedname':acceptedTax.get('scientificName')})
-            elif inputTax.get('scientificname'):
-                res.update({'acceptedname':acceptedTax.get('scientificname')})
-            else:
-                res.update({'acceptedname':acceptedTax.get('canonicalname')})
+                res.update({'acceptedname':inputTax.get('scientificName')})
+            #elif inputTax.get('scientificname'):
+            #    res.update({'acceptedname':inputTax.get('scientificname')})
+            #else:
+            #    res.update({'acceptedname':inputTax.get('canonicalname')})
                     
     return res
 
@@ -875,7 +879,7 @@ def synosAndParents(cursor,cd_taxs):
 def checkCdTax(connection, cd_tax, **taxArgs):
     retrievedInfo = manageInputTax(connection=connection, insert = F, **taxArgs)
     return retrievedInfo.get('cd_tax') == cd_tax
-    
+
 def deleteTaxo(connection, cd_tax):
     cur=connection.cursor()
     children = childrenList(cur,cd_tax)

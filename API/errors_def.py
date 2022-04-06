@@ -30,6 +30,7 @@ Base class:
 28. RuntimeError: Raised when a generated error does not fall into any category.
 29.NotImplementedError: Raised when an abstract method that needs to be implemented in an inherited class is not actually implemented.
 """
+
 class MissingArgError(Exception):
     def __init__(self, missingArg, message="Missing arguments which would be necessary for the proper functioning of the current process"):
         self.missingArg = missingArg
