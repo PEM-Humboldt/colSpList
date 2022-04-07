@@ -34,7 +34,7 @@ ListExotGetArgs={'childrenOf': fields.Str(required=False), 'format': fields.Str(
 ListThreatGetArgs={'childrenOf': fields.Str(required=False), 'format': fields.Str(required=False)}
 ListTaxGetArgs={'childrenOf': fields.Str(required=False), 'format': fields.Str(required=False)}
 TaxGetArgs={'canonicalname': fields.Str(required=False), 'cd_tax': fields.Int(required=False), 'gbifkey': fields.Int(required=False), 'scientificname': fields.Str(required=False)}
-ListReferencesGetArgs={'onlyEndem': fields.Bool(required=False), 'onlyExot': fields.Bool(required=False), 'onlyThreat': fields.Bool(required=False)}
+ListReferencesGetArgs={'onlyEndem': fields.Bool(required=False), 'onlyExot': fields.Bool(required=False), 'onlyThreat': fields.Bool(required=False), 'format':fields.Str(required=False)}
 ManageTaxoPostArgs={'authorship': fields.Str(required=False), 'canonicalname': fields.Str(required=False), 'gbifkey': fields.Int(required=False), 'parentcanonicalname': fields.Str(required=False), 'parentgbifkey': fields.Int(required=False), 'parentscientificname': fields.Str(required=False), 'scientificname': fields.Str(required=False), 'syno': fields.Bool(required=False), 'synocanonicalname': fields.Str(required=False), 'synogbifkey': fields.Int(required=False), 'synoscientificname': fields.Str(required=False)}
 ManageTaxoDeleteArgs={'cd_tax': fields.Int(required=True), 'canonicalname': fields.Str(required=False), 'gbifkey': fields.Int(required=False), 'scientificname': fields.Str(required=False)}
 ManageTaxoPutArgs={'cd_tax': fields.Int(required=True), 'authorship': fields.Str(required=False), 'canonicalname': fields.Str(required=False), 'cd_ref': fields.Int(required=False), 'gbifkey': fields.Int(required=False), 'link': fields.List(fields.Str(),required=False), 'parentcanonicalname': fields.Str(required=False), 'parentgbifkey': fields.Int(required=False), 'parentscientificname': fields.Str(required=False), 'reference': fields.Str(required=False), 'scientificname': fields.Str(required=False), 'status': fields.Str(required=False), 'syno': fields.Bool(required=False), 'synocanonicalname': fields.Str(required=False), 'synogbifkey': fields.Int(required=False), 'synoscientificname': fields.Str(required=False)}
@@ -58,3 +58,19 @@ UserPutArgs={'newPassword': fields.Str(required=True)}
 AdminUsersGetArgs={'format': fields.Str(required=False)}
 AdminUsersDeleteArgs={'uid': fields.Int(required=False), 'username': fields.Str(required=False)}
 AdminUsersPutArgs={'grant_admin': fields.Bool(required=False), 'grant_edit': fields.Bool(required=False), 'grant_user': fields.Bool(required=False), 'newPassword': fields.Str(required=False), 'revoke_admin': fields.Bool(required=False), 'revoke_edit': fields.Bool(required=False), 'revoke_user': fields.Bool(required=False), 'uid': fields.Int(required=False), 'username': fields.Str(required=False)}
+#Multiple versions:
+ListTestEndemGetArgs={'list':fields.List(fields.Nested(TestEndemGetArgs))}
+ListTestExotGetArgs={'list':fields.List(fields.Nested(TestExotGetArgs))}
+ListTestThreatGetArgs={'list':fields.List(fields.Nested(TestThreatGetArgs))}
+ListManageTaxoPostArgs={'list':fields.List(fields.Nested(ManageTaxoPostArgs))}
+ListManageTaxoPutArgs={'list':fields.List(fields.Nested(ManageTaxoPutArgs))}
+ListManageTaxoDeleteArgs={'list':fields.List(fields.Nested(ManageTaxoDeleteArgs))}
+ListManageExotPutArgs={'list':fields.List(fields.Nested(ManageExotPutArgs))}
+ListManageExotPostArgs={'list':fields.List(fields.Nested(ManageExotPostArgs))}
+ListManageExotDeleteArgs={'list':fields.List(fields.Nested(ManageExotDeleteArgs))}
+ListManageEndemPutArgs={'list':fields.List(fields.Nested(ManageEndemPutArgs))}
+ListManageEndemPostArgs={'list':fields.List(fields.Nested(ManageEndemPostArgs))}
+ListManageEndemDeleteArgs={'list':fields.List(fields.Nested(ManageEndemDeleteArgs))}
+ListManageThreatPutArgs={'list':fields.List(fields.Nested(ManageThreatPutArgs))}
+ListManageThreatPostArgs={'list':fields.List(fields.Nested(ManageThreatPostArgs))}
+ListManageThreatDeleteArgs={'list':fields.List(fields.Nested(ManageThreatDeleteArgs))}

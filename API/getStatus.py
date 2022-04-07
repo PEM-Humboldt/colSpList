@@ -240,7 +240,7 @@ def getListExot(connection, listChildren, formatExport):
 
 def getListEndem(connection, listChildren, formatExport):
     if len(listChildren)==0:
-        SQL="SELECT * FROM endem"
+        SQL="SELECT * FROM endem_list"
         if formatExport=="CSV":
              res = pd.read_sql_query(SQL, connection)
         else:

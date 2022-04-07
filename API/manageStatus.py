@@ -16,13 +16,13 @@ from fuzzywuzzy import fuzz
 from getStatus import getThreatStatus
 from getStatus import getExotStatus
 from getStatus import getEndemStatus
-from errors_def import MissingArgError, DatabaseUncompatibilityValueError, DatabaseUncompatibilityError, AlreadyExistsDbError, DeleteMissingElementDbError, ModifyMissingStatusDbError, TaxonNotFoundDbError, GrantExistingRightError, RevokeUnexistingRightError, UncompatibilityGbifKeyCanonicalname, DbIntegrityError, UncompatibleStatusError, UnauthorizedValueError
+from errors_def import ModifyMissingRefDbError, UnauthorizedValueError, DeleteMissingElementDbError, UncompatibleStatusError, MissingArgError, ModifyMissingStatusDbError
 
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 
 def insertHabitos(connection,cd_tax, habitos):
-    None
+    Pass
 
 def manageSource(cursor, ref_citation, ref_link):
     """
@@ -60,8 +60,58 @@ def manageSource(cursor, ref_citation, ref_link):
     # it should return the id of the source in the database
     return cdRef
 
-def mergeSources(connection, into_ref, from_ref):
-    None
+def modifyRef(connection,**refPutArgs):
+    cd_ref=refPutArgs.get('cd_ref')
+    cur=connection.cursor()
+    SQL="SELECT count(cd_ref) FROM refer WHERE cd_ref=%s"
+    cur.execute(SQL,[cd_ref])
+    nb_cd_ref,=cur.fetchone()
+    if not bool(nb_cd_ref):
+        cur.close()
+        raise ModifyMissingRefDbError(cd_ref=cd_ref)
+    if refPutArgs.get('reference'):
+        SQL="UPDATE refer SET citation=%s WHERE cd_ref=%s"
+        cur.execute(SQL,[refPutArgs.get('reference'),cd_ref])
+    if refPutArgs.get('link'):
+        SQL="UPDATE refer SET link=%s WHERE cd_ref=%s"
+        cur.execute(SQL,[refPutArgs.get('link'),cd_ref])
+    cur.close()
+    return {'cd_ref_modif':cd_ref}
+
+def mergeRefs(connection, into_ref, from_ref):
+    cur=connection.cursor()
+    SQL= "SELECT count(cd_ref) FILTER (WHERE cd_ref=%s) nb_into_ref, count(cd_ref)=%s FILTER WHERE (cd_ref=%s) nb_from_ref  FROM refer"
+    cur.execute(SQL,[into_ref,from_ref])
+    nb_into_ref,nb_from_ref=cur.fetchone()[0]
+    if not bool(nb_into_ref):
+        cur.close()
+        raise UnauthorizedValueError(value=into_ref,var='into_ref',acceptable='See endpoint /listRef')
+    if not bool(nb_from_ref):
+        cur.close()
+        raise UnauthorizedValueError(value=from_ref,var='cd_ref',acceptable='See endpoint /listRef')
+    SQL="UPDATE ref_endem SET cd_ref=%s WHERE cd_ref=%s -- RETURNING id"
+    cur.execute(SQL,[into_ref,from_ref])
+    SQL="UPDATE ref_threat SET cd_ref=%s WHERE cd_ref=%s -- RETURNING id"
+    cur.execute(SQL,[into_ref,from_ref])
+    SQL="UPDATE ref_exot SET cd_ref=%s WHERE cd_ref=%s -- RETURNING id"
+    cur.execute(SQL,[into_ref,from_ref])
+    SQL="UPDATE taxon SET source=%s WHERE source=%s -- RETURNING cd_tax"
+    cur.execute(SQL,[into_ref,from_ref])
+    cur.close()
+
+def deleteRef(connection, cd_ref):
+    cur=connection.cursor()
+    SQL="SELECT count(cd_ref) FROM refer WHERE cd_ref=%s"
+    cur.execute(SQL,[cd_ref])
+    nb_cd_ref,=cur.fetchone()
+    if not bool(nb_cd_ref):
+        cur.close()
+        raise DeleteMissingElementDbError(value=cd_ref,var='cd_ref')
+    SQL = "DELETE FROM refer WHERE cd_ref=%s"
+    cur.execute(SQL,[cd_ref])
+    cur.close()
+
+
 
 def manageInputThreat(cd_tax, connection, **inputThreat):
     """
@@ -428,7 +478,7 @@ def manageInputExot(cd_tax,connection,**inputExot):
             sameStatus = (inputExot.get('is_alien') == exotStatus['is_alien']) and (inputExot.get('is_invasive') == exotStatus['is_invasive'])   
             if(not sameStatus):
                 raise UncompatibleStatusError(dbStatus={'is_alien': exotStatus['is_alien'], 'is_invasive': exotStatus['is_invasive']}, providedStatus={'is_alien': inputExot['is_alien'], 'is_invasive': inputExot['is_invasive']})
-                raise Exception("The taxon already exists in the database with another threat status")    
+                #raise Exception("The taxon already exists in the database with another threat status")    
     cur.close()
     with connection:
         with connection.cursor() as cur:
@@ -490,3 +540,5 @@ def modifyExot(cd_tax,connection,**inputExot):
                 SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_exot AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_exot(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
                 cur.execute(SQL,[cdRefs[i],cd_tax])
     return {'cd_tax': cd_tax,'cdRefs': cdRefs}
+
+

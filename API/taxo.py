@@ -15,7 +15,7 @@ from io import BytesIO
 from flask import send_file
 from fuzzywuzzy import fuzz
 from manageStatus import manageSource
-from errors_def import MissingArgError, DatabaseUncompatibilityValueError, DatabaseUncompatibilityError, AlreadyExistsDbError, DeleteMissingElementDbError, ModifyMissingStatusDbError, TaxonNotFoundDbError, GrantExistingRightError, RevokeUnexistingRightError, UncompatibilityGbifKeyCanonicalname, DbIntegrityError, UncompatibleStatusError, UnauthorizedValueError
+from errors_def import UncompatibilityGbifKeyCanonicalname, DbIntegrityError, MissingArgError, UnauthorizedValueError, AlreadyExistsDbError
 DATABASE_URL = os.environ['DATABASE_URL']
 PYTHONIOENCODING="UTF-8"
 

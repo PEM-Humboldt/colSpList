@@ -67,7 +67,16 @@ class DeleteMissingElementDbError(DatabaseUncompatibilityError):
         return f'{self.field} {self.value} {self.message}'
 
 class ModifyMissingStatusDbError(DatabaseUncompatibilityError):
-    def __init__(self, cd_tax, statustype, message="impossible to modify"):
+    def __init__(self, cd_ref, statustype, message="impossible to modify"):
+        self.cd_ref = cd_ref
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f'Reference {self.cd_ref} does not exist: {self.message}'
+
+class ModifyMissingRefDbError(DatabaseUncompatibilityError):
+    def __init__(self, cd_ref, statustype, message="impossible to modify"):
         self.cd_tax = cd_tax
         self.statustype = statustype
         self.message = message
@@ -161,6 +170,33 @@ class UnauthorizedValueError(ValueError):
             return f'{self.message} (acceptable:{str(self.acceptable)})'
         else :
             return f'{self.message}'
-            
 
+class UncompatibilityCdTaxInputTaxError(DatabaseUncompatibilityValueError):
+    def __init__(self, cd_tax, inputTax, message= "The name provided and the cd_tax do not correspond"):
+        self.cd_tax = cd_tax
+        self.inputTax = inputTax
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f'{self.message} (cd_tax: {str(self.cd_tax)}, inputTax: {str(self.inputTax)})'
+
+class DbIntegrityError(Exception):
+    def __init__(self, value=None, field=None ,message="Database integrity Error"):
+        self.value = value
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        if self.value is not None:
+            return f'{self.message} (field: {self.field}, value: {self.value})'
+
+
+class Abort500Error(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
+    
+    def __str__(self):
+        return f'{self.message}'
 
