@@ -1,0 +1,744 @@
+---
+title: "Functionality tests and examples for the colSpListAPI: basic query endpoints"
+output: 
+  github_document:
+    toc: true
+    number_section: true
+---
+
+In this document, we will test the base endpoints of the colSpList API (the endpoints which allow to query the API database).
+
+************************
+
+**Note**:
+
+This document was created from a Rmarkdown document, with the output format "github_document".
+In order to use this type of file, please install the packages *knitr* and *rmarkdown* in R.
+
+1. If you want to compile the document as a markdown document for github, while applying all the code contained in the file
+    + use ```rmarkdown::render("file.Rmd")```
+2. The python script is extracted from the Rmd document using (in R):
+    + ```source "../../extra/extractPythonRmd.R"; extractPythonRmd("file.Rmd")
+    
+***********************
+
+```{python}
+import requests
+api_url="http://colsplist.herokuapp.com"
+```
+
+# /testEndem
+## GET
+
+```{python}
+endpoint="/testEndem"
+```
+
+
+
+The /testEndem endpoint allows to search a taxon in the API database and returns its endemism status if it has one.
+
+### Species with an endemic status
+
+#### From canonical name
+
+```{python}
+toSend1={'canonicalname':'Accipiter collaris'}
+response = requests.get(api_url+endpoint, json=toSend1)
+response.json()
+```
+#### From scientific name
+
+```{python}
+toSend2={'scientificname':'Odontophorus strophium (Gould, 1844)'}
+response = requests.get(api_url+endpoint, json=toSend2)
+response.json()
+```
+
+
+#### From gbifkey
+```{python}
+toSend3={'gbifkey':2480593}
+response = requests.get(api_url+endpoint, json=toSend3)
+response.json()
+```
+
+#### synonym of a species with an endemic status
+
+```{python}
+toSend4 = {'canonicalname':'Anas andium'}
+response = requests.get(api_url+endpoint, json=toSend4)
+response.json()
+```
+
+
+#### spelling error
+
+(Accipiter coll**O**ris en lugat de Accipiter coll**A**ris)
+
+```{python}
+toSend5 = {'canonicalname':'Accipiter colloris'}
+response = requests.get(api_url+endpoint, json=toSend5)
+response.json()
+```
+
+
+### Species without an endemic status
+
+#### Species which is in the database but has no endemic status
+```{python}
+toSend6={'canonicalname':'Elaeis guineensis'}
+response = requests.get(api_url+endpoint, json=toSend6)
+response.json()
+```
+
+
+
+#### Species which is not in the database
+
+```{python}
+toSend7={'canonicalname':'Espeletia grandiflora'}
+response = requests.get(api_url+endpoint, json=toSend7)
+response.json()
+```
+
+#### Species which does not exists
+
+```{python}
+toSend8={'canonicalname':'Asriwendosa machibibus'}
+response = requests.get(api_url+endpoint, json=toSend8)
+response.json()
+```
+
+
+### Error: no sufficient information given
+
+```{python}
+toSend9={}
+response = requests.get(api_url+endpoint, json=toSend9)
+response.json()
+```
+
+# /testEndem/list
+## POST
+
+```{python}
+endpoint="/testEndem/list"
+```
+
+
+
+```{python}
+ListToSend={'list':[toSend1,toSend2,toSend3,toSend4,toSend5,toSend6,toSend7,toSend8,toSend9]}
+response = requests.post(api_url+endpoint, json=ListToSend)
+response.json()
+```
+
+# /testExot
+## GET
+
+```{python}
+endpoint="/testExot"
+```
+
+
+
+The /testExot endpoint allows to search a taxon in the API database and returns its exotic status if it has one.
+
+### Species with an exotic status
+
+#### From canonical name
+
+```{python}
+toSend1={'canonicalname':'Gymnocorymbus ternetzi'}
+response = requests.get(api_url+endpoint, json=toSend1)
+response.json()
+```
+#### From scientific name
+
+```{python}
+toSend2={'scientificname':'Rosa chinensis Jacq.'}
+response = requests.get(api_url+endpoint, json=toSend2)
+response.json()
+```
+
+
+#### From gbifkey
+```{python}
+toSend3={'gbifkey':5190769}
+response = requests.get(api_url+endpoint, json=toSend3)
+response.json()
+```
+
+#### synonym of a species with an exotic status
+
+```{python}
+toSend4 = {'canonicalname':'Cnidoscolus chayamansa'}
+response = requests.get(api_url+endpoint, json=toSend4)
+response.json()
+```
+
+
+#### spelling error
+
+(Accipiter Rosa chin**A**nsis en lugar de Rosa chin**E**nsis)
+
+```{python}
+toSend5 = {'canonicalname':'Rosa chinansis'}
+response = requests.get(api_url+endpoint, json=toSend5)
+response.json()
+```
+
+
+### Species without an exotic status
+
+#### Species which is in the database but has no exotic status
+```{python}
+toSend6={'canonicalname':'Licania glauca'}
+response = requests.get(api_url+endpoint, json=toSend6)
+response.json()
+```
+
+
+
+#### Species which is not in the database
+
+```{python}
+toSend7={'canonicalname':'Espeletia grandiflora'}
+response = requests.get(api_url+endpoint, json=toSend7)
+response.json()
+```
+
+#### Species which does not exists
+
+```{python}
+toSend8={'canonicalname':'Asriwendosa machibibus'}
+response = requests.get(api_url+endpoint, json=toSend8)
+response.json()
+```
+
+
+### Error: no sufficient information given
+
+```{python}
+toSend9={}
+response = requests.get(api_url+endpoint, json=toSend9)
+response.json()
+```
+
+# /testExot/list
+## POST
+
+```{python}
+endpoint="/testExot/list"
+```
+
+
+
+```{python}
+ListToSend={'list':[toSend1,toSend2,toSend3,toSend4,toSend5,toSend6,toSend7,toSend8,toSend9]}
+response = requests.post(api_url+endpoint, json=ListToSend)
+response.json()
+```
+
+# /testThreat
+## GET
+
+```{python}
+endpoint="/testThreat"
+```
+
+
+
+The /testThreat endpoint allows to search a taxon in the API database and returns its threat status if it has one.
+
+### Species with an threatened status
+
+#### From canonical name
+
+```{python}
+toSend1={'canonicalname':'Podocarpus guatemalensis'}
+response = requests.get(api_url+endpoint, json=toSend1)
+response.json()
+```
+#### From scientific name
+
+```{python}
+toSend2={'scientificname':'Puya ochroleuca Betancur & Callejas'}
+response = requests.get(api_url+endpoint, json=toSend2)
+response.json()
+```
+
+
+#### From gbifkey
+```{python}
+toSend3={'gbifkey':5789077}
+response = requests.get(api_url+endpoint, json=toSend3)
+response.json()
+```
+
+#### synonym of a species with an threatened status
+
+```{python}
+toSend4 = {'canonicalname':'Ptychoglossus danieli'}
+response = requests.get(api_url+endpoint, json=toSend4)
+response.json()
+```
+
+
+#### spelling error
+
+(Espeletia pa**y**pana en lugat de Espeletia pa**i**pana)
+
+```{python}
+toSend5 = {'canonicalname':'Espeletia paypana'}
+response = requests.get(api_url+endpoint, json=toSend5)
+response.json()
+```
+
+
+### Species without an threatened status
+
+#### Species which is in the database but has no threatened status
+```{python}
+toSend6={'canonicalname':'Tangara johannae'}
+response = requests.get(api_url+endpoint, json=toSend6)
+response.json()
+```
+
+
+
+#### Species which is not in the database
+
+```{python}
+toSend7={'canonicalname':'Espeletia grandiflora'}
+response = requests.get(api_url+endpoint, json=toSend7)
+response.json()
+```
+
+#### Species which does not exists
+
+```{python}
+toSend8={'canonicalname':'Asriwendosa machibibus'}
+response = requests.get(api_url+endpoint, json=toSend8)
+response.json()
+```
+
+
+### Error: no sufficient information given
+
+```{python}
+toSend9={}
+response = requests.get(api_url+endpoint, json=toSend9)
+response.json()
+```
+
+
+# /testThreat/list
+## POST
+
+```{python}
+endpoint="/testThreat/list"
+```
+
+
+
+```{python}
+ListToSend={'list':[toSend1,toSend2,toSend3,toSend4,toSend5,toSend6,toSend7,toSend8,toSend9]}
+response = requests.post(api_url+endpoint, json=ListToSend)
+response.json()
+```
+
+# /listEndem
+
+## GET
+
+```{python}
+endpoint="/listEndem"
+```
+
+### Comprehensive list
+
+We will download the list and show the 5 first taxa:
+
+```{python}
+response = requests.get(api_url+endpoint)
+content=response.json()
+len(content)
+content[0:4]
+```
+
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listEndem?format=CSV>
+
+************************
+
+### Only the passerine birds
+
+The five first passerine birds of the endemic list:
+
+```{python}
+onlyPasserine={'childrenOf':'Passeriformes'}
+response = requests.get(api_url+endpoint,json=onlyPasserine)
+content=response.json()
+len(content)
+content[0:4]
+```
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listEndem?childrenOf=Passeriformes&format=CSV>
+
+************************
+
+
+### Error: asking for an unknown group
+
+We will ask for all the children of the genus Abies (Fir genus)
+
+```{python}
+onlyAbies={'childrenOf':'Abies'}
+response = requests.get(api_url+endpoint,json=onlyAbies)
+response.json()
+```
+
+# /listExot
+
+## GET
+
+```{python}
+endpoint="/listExot"
+```
+
+### Comprehensive list
+
+We will download the list and show the 5 first taxa:
+
+```{python}
+response = requests.get(api_url+endpoint)
+content=response.json()
+len(content)
+content[0:4]
+```
+
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listExot?format=CSV>
+
+************************
+
+### Only the passerine birds
+
+The five first passerine birds of the endemic list:
+
+```{python}
+onlyPasserine={'childrenOf':'Passeriformes'}
+response = requests.get(api_url+endpoint,json=onlyPasserine)
+content=response.json()
+len(content)
+content[0:4]
+```
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listExot?childrenOf=Passeriformes&format=CSV>
+
+************************
+
+
+### Error: asking for an unknown group
+
+We will ask for all the children of the genus Abies (Fir genus)
+
+```{python}
+onlyAbies={'childrenOf':'Abies'}
+response = requests.get(api_url+endpoint,json=onlyAbies)
+response.json()
+```
+
+# /listThreat
+
+## GET
+
+```{python}
+endpoint="/listThreat"
+```
+
+### Comprehensive list
+
+We will download the list and show the 5 first taxa:
+
+```{python}
+response = requests.get(api_url+endpoint)
+content=response.json()
+len(content)
+content[0:4]
+```
+
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listThreat?format=CSV>
+
+************************
+
+### Only the passerine birds
+
+The five first passerine birds of the endemic list:
+
+```{python}
+onlyPasserine={'childrenOf':'Passeriformes'}
+response = requests.get(api_url+endpoint,json=onlyPasserine)
+content=response.json()
+len(content)
+content[0:4]
+```
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listThreat?childrenOf=Passeriformes&format=CSV>
+
+************************
+
+
+### Error: asking for an unknown group
+
+We will ask for all the children of the genus Abies (Fir genus)
+
+```{python}
+onlyAbies={'childrenOf':'Abies'}
+response = requests.get(api_url+endpoint,json=onlyAbies)
+response.json()
+```
+
+# /tax
+## GET
+
+```{python}
+endpoint = "/tax"
+```
+
+The /tax endpoints allows to query the API database for a taxon.
+
+### From the cd_tax
+
+cd_tax is the identificator of the taxon in the database and is returned from many API endpoints. 
+Therefore it might be useful to download the information from this cd_tax
+
+```{python}
+toSend={'cd_tax':150}
+response = requests.get(api_url+endpoint, json=toSend)
+response.json()
+```
+
+### From a scientific name
+
+```{python}
+toSend={'scientificname':"Urochloa brizantha (A.Rich.) R.D.Webster"}
+response = requests.get(api_url+endpoint, json=toSend)
+response.json()
+```
+
+### From a canonical name
+
+```{python}
+toSend={'canonicalname':'Rottboellia cochinchinensis'}
+response = requests.get(api_url+endpoint, json=toSend)
+response.json()
+```
+
+### Species which is not in database
+
+The API send back an empty JSON variable
+
+```{python}
+toSend={'canonicalname':'Amanita caesarea'}
+response = requests.get(api_url+endpoint, json=toSend)
+response.json()
+```
+
+### Species which does not exist
+
+The API send back an empty JSON variable
+
+```{python}
+toSend={'canonicalname':'Inventadus inexistus'}
+response = requests.get(api_url+endpoint, json=toSend)
+response.json()
+```
+
+# /listTax
+## GET
+
+The "/listTax" endpoints allows to query the taxonomic table of the database API.
+
+```{python}
+endpoint="/listTax"
+```
+
+### Comprehensive list
+
+Here is the code to download the complete list of taxa in the database and show the 5 first taxa.
+
+```{python}
+response = requests.get(api_url+endpoint)
+content=response.json()
+len(content)
+content[0:4]
+```
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listTax?format=CSV>
+
+************************
+
+### Only the Bivalve
+
+The following code shows how to query the Bivalvia Class from the database and shows the 10 firsts:
+
+```{python}
+onlyBivalve={'childrenOf':'Bivalvia'}
+response = requests.get(api_url+endpoint,json=onlyBivalve)
+content=response.json()
+len(content)
+content[0:9]
+```
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listTax?childrenOf=Bivalvia&format=CSV>
+
+************************
+
+# /listReferences
+
+```{python}
+endpoint = "/listReferences"
+```
+
+
+## GET
+
+The GET method of the */listReferences* endpoint allows to get the reference list from the API database.
+
+### Comprehensive list
+
+Here to download the reference list and show the 10 first results:
+
+```{python}
+response = requests.get(api_url+endpoint)
+content=response.json()
+len(content)
+content[0:9]
+```
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listReferences?format=CSV>
+
+************************
+
+### Only the references concerning exotic species
+
+```{python}
+onlyExot={'onlyExot':True}
+response = requests.get(api_url+endpoint, json=onlyExot)
+content=response.json()
+len(content)
+content[0:9]
+```
+
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listReferences?onlyExot=True&format=CSV>
+
+************************
+
+### Only the references concerning threatened species
+
+```{python}
+onlyThreat={'onlyThreat':True}
+response = requests.get(api_url+endpoint, json=onlyThreat)
+content=response.json()
+len(content)
+content[0:9]
+```
+
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listReferences?onlyThreat=True&format=CSV>
+
+************************
+
+### Only the references concerning endemic species
+
+```{python}
+onlyEndem={'onlyEndem':True}
+response = requests.get(api_url+endpoint, json=onlyEndem)
+content=response.json()
+len(content)
+content[0:9]
+```
+
+
+************************
+
+**Note**:
+
+You might want to download the list as a CSV file, the most practical way to do that is not from the python interface, just click here:
+
+<https://colsplist.herokuapp.com/listReferences?onlyEndem=True&format=CSV>
+
+************************
+
+
