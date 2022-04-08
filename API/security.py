@@ -5,7 +5,7 @@ import psycopg2.extras
 import os
 from passlib.apps import custom_app_context as pwd_context
 from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
-import errors_def
+from errors_def import MissingArgError, AlreadyExistsDbError, DeleteMissingElementDbError, GrantExistingRightError, RevokeUnexistingRightError 
 
 def hash_password(password):
     password_hash = pwd_context.hash(password)
@@ -58,7 +58,7 @@ def new_user(connection,**userArgs):
     if password is None:
         raise MissingArgError(missingArg="'password'")
     if user_exists(cur,username):
-        raise alreadyExistsDbError(value=username, field='username')
+        raise AlreadyExistsDbError(value=username, field='username')
     hash_pw = hash_password(password)
     newId = insert_user(cur,username,hash_pw)
     connection.commit()

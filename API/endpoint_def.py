@@ -7,7 +7,7 @@ from security import new_user, delete_user, valid_password, user_exists, get_use
 from errors_def import Abort500Error
 from manageStatus import manageInputThreat, manageInputEndem, manageInputExot
 from getStatus import testEndemStatus, testExotStatus, testThreatStatus, getListExot, getListEndem, getListThreat, getListTax, getListReferences, getTax
-from error_handling import testEndemGet_err_hand, testExotGet_err_hand, testThreatGet_err_hand, ListEndem_err_hand, ListThreat_err_hand, ListExot_err_hand, ListTax_err_hand, GetTaxon_err_hand, ListTax_err_hand, ListRef_err_hand, cleanDbDel_err_hand, userPost_err_hand, userPut_err_hand,adminUserDel_err_hand, adminUserGet_err_hand, manageTaxPost_err_hand,manageTaxDel_err_hand, manageTaxPut_err_hand, manageEndemPost_err_hand,manageEndemDel_err_hand,manageEndemPut_err_hand,manageExotPost_err_hand, manageExotDel_err_hand, manageExotPut_err_hand, manageThreatPost_err_hand, manageThreatDel_err_hand, manageThreatPut_err_hand, manageRefDel_err_hand, manageRefPut_err_hand
+from error_handling import testEndemGet_err_hand, testExotGet_err_hand, testThreatGet_err_hand, ListEndem_err_hand, ListThreat_err_hand, ListExot_err_hand, ListTax_err_hand, GetTaxon_err_hand, ListTax_err_hand, ListRef_err_hand, cleanDbDel_err_hand, userPost_err_hand, userPut_err_hand,adminUserDel_err_hand, adminUserGet_err_hand, manageTaxPost_err_hand,manageTaxDel_err_hand, manageTaxPut_err_hand, manageEndemPost_err_hand,manageEndemDel_err_hand,manageEndemPut_err_hand,manageExotPost_err_hand, manageExotDel_err_hand, manageExotPut_err_hand, manageThreatPost_err_hand, manageThreatDel_err_hand, manageThreatPut_err_hand, manageRefDel_err_hand, manageRefPut_err_hand, adminUserPut_err_hand
 from webargs import fields, validate,missing
 from webargs.flaskparser import parser
 from webargs.flaskparser import use_args,use_kwargs,abort
@@ -56,7 +56,6 @@ def get_roles(authenticated):
 
 # performance
 class CleanDb(Resource):
-    @use_kwargs(input_args.CleanDbDeleteArgs,location="query")
     @use_kwargs(input_args.CleanDbDeleteArgs,location="json")
     @auth.login_required(role=['edit','admin'])
     def delete(self,**cdbArgs):
@@ -124,6 +123,32 @@ class Performance(Resource):
         
 # security
 class User(Resource):
+    @use_kwargs(input_args.UserPostArgs)
+    def post(self, **userArgs):
+        """
+        Description
+		-----------
+		Creates a user without editing/admin rights
+		
+		Required arguments
+		--------------------
+		username: Str
+			Name of a user
+		password: Str
+			Password of a user for its creation
+		
+		Returns
+		-----------
+		uid: Int
+			Identificator of a user
+        """
+        try:
+            conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+            res = userPost_err_hand(conn, **userArgs)
+            return res
+        finally:
+            conn.close()
+    
     @auth.login_required
     def get(self):
         """
@@ -156,33 +181,6 @@ class User(Resource):
         finally:
             conn.close()
     
-    @use_kwargs(input_args.UserPostArgs,location="query")
-    @use_kwargs(input_args.UserPostArgs,location="json")
-    def post(self, **userArgs):
-        """
-        Description
-		-----------
-		Creates a user without editing/admin rights
-		
-		Required arguments
-		--------------------
-		username: Str
-			Name of a user
-		password: Str
-			Password of a user for its creation
-		
-		Returns
-		-----------
-		uid: Int
-			Identificator of a user
-        """
-        try:
-            conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = userPost_err_hand(conn, **userArgs)
-            return res
-        finally:
-            conn.close()
-    
     @auth.login_required
     def delete(self):
         """
@@ -200,12 +198,12 @@ class User(Resource):
         try:
             user=g.get('user')
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-            res= adminUserDel_err_hand(connection,**user) # Note we use the same function and user handler than in the case of the deletion by an admin
+            res= adminUserDel_err_hand(connection=conn,**user) # Note we use the same function and user handler than in the case of the deletion by an admin
             return res
         finally:
             conn.close()
     
-    @use_kwargs(input_args.UserPutArgs,location="json")
+    @use_kwargs(input_args.UserPutArgs)
     @auth.login_required
     def put(self,**newPassword):
         """
@@ -289,8 +287,8 @@ class AdminUsers(Resource):
         return user_list
     
     @auth.login_required(role='admin')
-    @use_kwargs(input_args.AdminUsersPutArgs,location="query")
-    @use_kwargs(input_args.AdminUsersPutArgs,location="json")
+    @use_kwargs(input_args.AdminUsersPutArgs)
+    #@use_kwargs(input_args.AdminUsersPutArgs,location="json")
     def put(self,**modifyArgs):
         """
         Description
@@ -325,27 +323,12 @@ class AdminUsers(Resource):
 		username: Str
 			User name
         """
-        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-        cur=conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        res=dict()
-        if modifyArgs.get('grant_user'):
-            res.update({'grant_user':grant_user(cur,**modifyArgs)})
-        if modifyArgs.get('grant_edit'):
-            res.update({'grant_edit':grant_edit(cur,**modifyArgs)})
-        if modifyArgs.get('grant_admin'):
-            res.update({'grant_admin':grant_admin(cur,**modifyArgs)})
-        if modifyArgs.get('revoke_user'):
-            res.update({'revoke_user':revoke_user(cur,**modifyArgs)})
-        if modifyArgs.get('revoke_edit'):
-            res.update({'revoke_edit':revoke_edit(cur,**modifyArgs)})
-        if modifyArgs.get('revoke_admin'):
-            res.update({'revoke_admin':revoke_admin(cur,**modifyArgs)})
-        if modifyArgs.get('newPassword'):
-            res.append({'newPassword':change_password(cur,**modifyArgs)})
-        conn.commit()
-        cur.close()
-        conn.close()
-        return res
+        try:
+            conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+            res=adminUserPut_err_hand(conn,**modifyArgs)
+            return res
+        finally:
+            conn.close()
 
 class GetTaxon(Resource):
     @use_kwargs(input_args.TaxGetArgs,location="query")

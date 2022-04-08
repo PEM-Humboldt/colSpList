@@ -10,6 +10,7 @@ from taxo import manageInputTax, get_gbif_parsed_from_sci_name,childrenList,dele
 from flask import abort, g
 from getStatus import testEndemStatus, testExotStatus, testThreatStatus, getListTax,getListExot, getListEndem, getListThreat, getTax, getListReferences
 from manageStatus import manageSource,deleteRef,mergeRefs, modifyRef, deleteExot, deleteEndem,deleteThreat,modifyEndem,modifyThreat,modifyExot,manageInputEndem,manageInputThreat,manageInputExot
+from security import new_user, delete_user, valid_password, user_exists, get_user, generate_auth_token, verify_auth_token, grant_user, revoke_user, grant_edit, revoke_edit, grant_admin, revoke_admin,change_password, get_user_list
 import psycopg2
 from psycopg2 import sql
 import psycopg2.extras
@@ -238,7 +239,7 @@ def cleanDbDel_err_hand(connection,**cdbArgs):
 
 def userPost_err_hand(connection, **userArgs):
     try:
-        uid,username=new_user(connection,userArgs)
+        uid,username=new_user(connection,**userArgs)
     except (AlreadyExistsDbError) as e:
         return {'error':str(e)}
     else:
@@ -268,6 +269,33 @@ def adminUserDel_err_hand(connection,**userArgs):
         connection.commit()
         return{'uid':uid, 'username':delUsername}
 
+def adminUserPut_err_hand(connection,**modifyArgs):
+    try:
+        res={'grant_edit':None,'grant_user':None,'grant_admin':None,'revoke_edit':None,'revoke_admin':None,'revoke_user':None,'newPassword':None}
+        cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        if modifyArgs.get('grant_user'):
+            res['grant_user']=grant_user(cur,**modifyArgs)
+        if modifyArgs.get('grant_edit'):
+            res['grant_edit']=grant_edit(cur,**modifyArgs)
+        if modifyArgs.get('grant_admin'):
+            res['grant_admin']=grant_admin(cur,**modifyArgs)
+        if modifyArgs.get('revoke_user'):
+            res['revoke_user']=revoke_user(cur,**modifyArgs)
+        if modifyArgs.get('revoke_edit'):
+            res['revoke_edit']=revoke_edit(cur,**modifyArgs)
+        if modifyArgs.get('revoke_admin'):
+            res['revoke_admin']=revoke_admin(cur,**modifyArgs)
+        if modifyArgs.get('newPassword'):
+            res['newPassword']=change_password(cur,**modifyArgs)
+    except (GrantExistingRightError,RevokeUnexistingRightError) as e:
+        return {'error':str(e)}
+    else:
+        connection.commit()
+        return res
+    finally:
+        cur.close()
+
+
 def adminUserGet_err_hand(connection):
     try:
         cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -278,7 +306,7 @@ def adminUserGet_err_hand(connection):
 
 def manageTaxPost_err_hand(connection, **inputTax):
     try:
-        res = manageInputTax(connection=connection, insert=True,**dictInput)
+        res = manageInputTax(connection=connection, insert=True,**inputTax)
     except (MissingArgError,UncompatibilityGbifKeyCanonicalname) as e:
         return{'error':str(e)}
     except (UnauthorizedValueError, DbIntegrityError) as e:
