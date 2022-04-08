@@ -253,7 +253,8 @@ class AdminUsers(Resource):
         """
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-            return adminUserGet_err_hand(conn,**userArgs)
+            res= adminUserDel_err_hand(conn,**userArgs)
+            return res
         finally:
             conn.close()
     
