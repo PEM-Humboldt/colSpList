@@ -56,8 +56,10 @@ def get_roles(authenticated):
 
 # performance
 class CleanDb(Resource):
-    @use_kwargs(input_args.CleanDbDeleteArgs,location="json")
+
     @auth.login_required(role=['edit','admin'])
+    @use_kwargs(input_args.CleanDbDeleteArgs,location="query")
+    @use_kwargs(input_args.CleanDbDeleteArgs,location="json")
     def delete(self,**cdbArgs):
         """
         Description
@@ -86,19 +88,19 @@ class CleanDb(Resource):
         """
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-            res=cleanDbGet_err_hand(conn,**cdbArgs)
+            res=cleanDbDel_err_hand(conn,**cdbArgs)
             return res
         finally:
             conn.close()
         
 class Performance(Resource):
-    @use_kwargs(input_args.PerformancePutArgs,location="query")
-    @use_kwargs(input_args.PerformancePutArgs,location="json")
+
     @auth.login_required(role=['admin'])
+    @use_kwargs(input_args.PerformancePutArgs)
     def put(self,**perfArgs):
         """
         Description
-		-----------
+        -----------:        
 		Run VACUUM and/or ANALYSE in the postgres database
 
 		Required arguments
@@ -123,6 +125,7 @@ class Performance(Resource):
         
 # security
 class User(Resource):
+
     @use_kwargs(input_args.UserPostArgs)
     def post(self, **userArgs):
         """
@@ -150,7 +153,8 @@ class User(Resource):
             conn.close()
     
     @auth.login_required
-    def get(self):
+    @use_kwargs(input_args.UserGetArgs)
+    def get(self,**userArgs):
         """
         Description
 		-----------
@@ -174,9 +178,10 @@ class User(Resource):
         """
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-            token = generate_auth_token(conn,g.user.get('id')).decode('ascii')
             user=g.get('user')
-            user['token']=token
+            if userArgs.get('create_token'):
+                token = generate_auth_token(conn,g.user.get('id')).decode('ascii')
+                user['token']=token
             return user
         finally:
             conn.close()
@@ -228,6 +233,7 @@ class User(Resource):
             conn.close()
     
 class AdminUsers(Resource):
+
     @auth.login_required(role='admin')
     @use_kwargs(input_args.AdminUsersDeleteArgs,location="query")
     @use_kwargs(input_args.AdminUsersDeleteArgs,location="json")

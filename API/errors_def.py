@@ -191,6 +191,15 @@ class DbIntegrityError(Exception):
         if self.value is not None:
             return f'{self.message} (field: {self.field}, value: {self.value})'
 
+class UserNotFoundError(DatabaseUncompatibilityError):
+    def __init__(self, user=None, message="User not found"):
+        self.user = value
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        if self.value is not None:
+            return f'{self.message} (user: {str(self.user)})'
 
 class Abort500Error(Exception):
     def __init__(self, message):

@@ -5,7 +5,7 @@ import psycopg2.extras
 import os
 from passlib.apps import custom_app_context as pwd_context
 from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired)
-from errors_def import MissingArgError, AlreadyExistsDbError, DeleteMissingElementDbError, GrantExistingRightError, RevokeUnexistingRightError 
+from errors_def import MissingArgError, AlreadyExistsDbError, DeleteMissingElementDbError, GrantExistingRightError, RevokeUnexistingRightError, UserNotFoundError 
 
 def hash_password(password):
     password_hash = pwd_context.hash(password)
@@ -16,7 +16,7 @@ def user_exists(cursor,username):
     cursor.execute(SQL,[username])
     res = bool(cursor.fetchone()['nb'])
     return(res)
-    
+ 
 def get_user(cursor, get_hash=False, **user):
     if user.get('id') is not None:
         SQL = "SELECT * FROM users WHERE id=%s"
@@ -26,7 +26,11 @@ def get_user(cursor, get_hash=False, **user):
         cursor.execute(SQL,[user.get('username')])
     else:
         raise MissingArgError(missingArg= "'id' or 'username'")
-    res = dict(cursor.fetchone())
+    res0 = cursor.fetchone()
+    if len(res0)==0:
+        userParts={k:v for (k,v) in user.items() if k in ['id','username']}
+        raise UserNotFoundError(user=userParts)
+    res=dict(res0)
     user= dict((k, res[k]) for k in ['id','username'] if k in res)
     user['roles'] = list()
     if res.get('apiuser'):
@@ -90,7 +94,7 @@ def grant_user(cursor, **userArgs):
 
 def revoke_user(cursor, **userArgs):
     user=get_user(cursor, get_hash=False, **userArgs)
-    if 'user' in user.get('roles'):
+    if not 'user' in user.get('roles'):
         raise RevokeUnexistingRightError(user=user.get('username'),right='user')
     uid=user.get('id')
     SQL = "UPDATE users SET apiuser = FALSE WHERE id=%s RETURNING id"
@@ -152,7 +156,7 @@ def generate_auth_token(connection,userId):
     cur= connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     sc=os.environ.get('SECRET_KEY')
     cur.close()
-    s = Serializer(sc,expires_in = 240)
+    s = Serializer(sc,expires_in = 15000)
     return s.dumps({'id':userId})
 
 def verify_auth_token(token,cur):
@@ -168,7 +172,7 @@ def verify_auth_token(token,cur):
     return user
 
 def get_user_list(cursor):
-    SQL = "SELECT id, username,apiuser,edit_auth,admin FROM users"
+    SQL = "SELECT id, username,apiuser AS user,edit_auth AS edit, admin FROM users"
     cursor.execute(SQL)
     res=cursor.fetchall()
     return res

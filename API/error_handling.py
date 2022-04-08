@@ -5,12 +5,13 @@ We manage here 2 types of errors:
 2. if the error is due to a problem in the api code or database, the function raises a "Abort500Error" in order to indicate to the endpoint that it should use the abort method with the "500" html error code and the message from the initial error code
 """
 
-from errors_def import MissingArgError, DatabaseUncompatibilityValueError, DatabaseUncompatibilityError, AlreadyExistsDbError, DeleteMissingElementDbError, ModifyMissingStatusDbError, TaxonNotFoundDbError, GrantExistingRightError, RevokeUnexistingRightError, UncompatibilityGbifKeyCanonicalname, DbIntegrityError, UncompatibleStatusError, UnauthorizedValueError,UncompatibilityCdTaxInputTaxError, ModifyMissingRefDbError, Abort500Error
+from errors_def import MissingArgError, DatabaseUncompatibilityValueError, DatabaseUncompatibilityError, AlreadyExistsDbError, DeleteMissingElementDbError, ModifyMissingStatusDbError, TaxonNotFoundDbError, GrantExistingRightError, RevokeUnexistingRightError, UncompatibilityGbifKeyCanonicalname, DbIntegrityError, UncompatibleStatusError, UnauthorizedValueError,UncompatibilityCdTaxInputTaxError, ModifyMissingRefDbError, UserNotFoundError, Abort500Error
 from taxo import manageInputTax, get_gbif_parsed_from_sci_name,childrenList,deleteTaxo, checkCdTax
 from flask import abort, g
 from getStatus import testEndemStatus, testExotStatus, testThreatStatus, getListTax,getListExot, getListEndem, getListThreat, getTax, getListReferences
 from manageStatus import manageSource,deleteRef,mergeRefs, modifyRef, deleteExot, deleteEndem,deleteThreat,modifyEndem,modifyThreat,modifyExot,manageInputEndem,manageInputThreat,manageInputExot
 from security import new_user, delete_user, valid_password, user_exists, get_user, generate_auth_token, verify_auth_token, grant_user, revoke_user, grant_edit, revoke_edit, grant_admin, revoke_admin,change_password, get_user_list
+from admin import delReference_no_status,delTaxo_no_status,delStatus_no_reference,delSyno_no_tax
 import psycopg2
 from psycopg2 import sql
 import psycopg2.extras
@@ -225,13 +226,13 @@ def cleanDbDel_err_hand(connection,**cdbArgs):
             cd_refs=[]
             cd_status=[]
             if cdbArgs.get('status_no_ref'):
-                cd_status+=delStatus_no_reference(conn)
+                cd_status+=delStatus_no_reference(connection)
             if cdbArgs.get('ref_no_status'):
-                cd_refs+=delReference_no_status(conn)
+                cd_refs+=delReference_no_status(connection)
             if cdbArgs.get('syno_no_tax'):
-                cd_taxs+=delSyno_no_tax(conn)
+                cd_taxs+=delSyno_no_tax(connection)
             if cdbArgs.get('tax_no_status'):
-                cd_taxs+=delTaxo_no_status(conn)
+                cd_taxs+=delTaxo_no_status(connection)
         except (MissingArgError,DeleteMissingElementDbError) as e:
             return {'error':str(e)}
         else:
@@ -252,7 +253,7 @@ def userPut_err_hand(connection,**userArgs):
         user.update(**userArgs)
         cur=connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         uid = change_password(cur,**user)
-    except MissingArgError as e:
+    except (UserNotFoundError,MissingArgError) as e:
         return {'error':str(e)}
     else:
         connection.commit()
@@ -263,7 +264,7 @@ def userPut_err_hand(connection,**userArgs):
 def adminUserDel_err_hand(connection,**userArgs):
     try:
         uid, delUsername = delete_user(connection,**userArgs)
-    except DeleteMissingElementDbError as e:
+    except (UserNotFoundError,MissingArgError,DeleteMissingElementDbError) as e:
         return {'error':str(e)}
     else:
         connection.commit()
@@ -287,7 +288,7 @@ def adminUserPut_err_hand(connection,**modifyArgs):
             res['revoke_admin']=revoke_admin(cur,**modifyArgs)
         if modifyArgs.get('newPassword'):
             res['newPassword']=change_password(cur,**modifyArgs)
-    except (GrantExistingRightError,RevokeUnexistingRightError) as e:
+    except (UserNotFoundError,GrantExistingRightError,RevokeUnexistingRightError,MissingArgError) as e:
         return {'error':str(e)}
     else:
         connection.commit()
