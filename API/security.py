@@ -73,7 +73,7 @@ def delete_user(connection, **userArgs):
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     username = userArgs.get('username')
     if(not user_exists(cur,username)):
-        raise DeleteMissinfElementDbError(value=username, field='username')
+        raise DeleteMissingElementDbError(value=username, field='username')
     user = get_user(cur, get_hash=False, **userArgs)
     SQL = "DELETE FROM users WHERE id=%s RETURNING id"
     cur.execute(SQL,[user.get('id')])
