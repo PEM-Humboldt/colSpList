@@ -6,7 +6,7 @@ We manage here 2 types of errors:
 """
 
 from errors_def import MissingArgError, DatabaseUncompatibilityValueError, DatabaseUncompatibilityError, AlreadyExistsDbError, DeleteMissingElementDbError, ModifyMissingStatusDbError, TaxonNotFoundDbError, GrantExistingRightError, RevokeUnexistingRightError, UncompatibilityGbifKeyCanonicalname, DbIntegrityError, UncompatibleStatusError, UnauthorizedValueError,UncompatibilityCdTaxInputTaxError, ModifyMissingRefDbError, UserNotFoundError, Abort500Error
-from taxo import manageInputTax, get_gbif_parsed_from_sci_name,childrenList,deleteTaxo, checkCdTax
+from taxo import manageInputTax, get_gbif_parsed_from_sci_name,childrenList,deleteTaxo, checkCdTax,modifyTaxo
 from flask import abort, g
 from getStatus import testEndemStatus, testExotStatus, testThreatStatus, getListTax,getListExot, getListEndem, getListThreat, getTax, getListReferences
 from manageStatus import manageSource,deleteRef,mergeRefs, modifyRef, deleteExot, deleteEndem,deleteThreat,modifyEndem,modifyThreat,modifyExot,manageInputEndem,manageInputThreat,manageInputExot
@@ -331,8 +331,7 @@ def manageTaxDel_err_hand(connection,**delTaxArgs):
 
 def manageTaxPut_err_hand(connection,**putTaxArgs):
     try:
-        cd_tax = putTaxArgs.get('cd_tax')
-        res = modifyTaxo(connection=connection, cd_tax=cd_tax,**putTaxArgs)
+        res = modifyTaxo(connection=connection,**putTaxArgs)
     except (MissingArgError,UncompatibilityGbifKeyCanonicalname,AlreadyExistsDbError) as e:
         return{'error':str(e)}
     except (UnauthorizedValueError, DbIntegrityError) as e:

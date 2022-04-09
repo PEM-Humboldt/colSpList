@@ -313,7 +313,7 @@ def test_taxInDb(connection,**kwargs):
     cur.close()
     return {'alreadyInDb': alreadyInDb, 'gbifMatchMode': gbifMatchMode, 'cdTax': cdTax}
 
-def get_infoTax(**kwargs):
+def get_infoTax(min_conf=90,**kwargs):
     """
     Retrieve information about a taxon from GBIF, depending on the available information
     
@@ -353,7 +353,7 @@ def get_infoTax(**kwargs):
         raise UnauthorizedValueError(value=kwargs.get(gbifMatchMode), var='gbifMatchMode', acceptable=['gbifkey','scientificname','canonicalname'])
         #raise Exception("No acceptable gbifMatchMode were provided")
     if(kwargs.get('gbifMatchMode') in ('scientificname','canonicalname')):
-        if(infoTax.get("matchType") != "NONE" and(infoTax.get("matchType") == "EXACT" or infoTax.get('confidence') >=90)):
+        if(infoTax.get("matchType") != "NONE" and(infoTax.get("matchType") == "EXACT" or infoTax.get('confidence') >=min_conf)):
             foundGbif = True
             infoTax.update(get_gbif_tax_from_id(infoTax.get('usageKey')))
         else:
@@ -479,9 +479,9 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
         else:
             rank, level_rank = get_rank(connection,inputTax.get('rank'))
         if(parentTax.get('canonicalname') is None):
-            if(rank_level < 5):#infraspecies: the superior rank is the species which we can get by association between the genus and the epithet
+            if(level_rank < 5):#infraspecies: the superior rank is the species which we can get by association between the genus and the epithet
                 parentTax['canonicalName'] = parsed.get('genusOrAbove') + ' ' + parsed.get('specificEpithet')
-            elif (rank_level == 5):
+            elif (level_rank == 5):
                 parentTax['canonicalname'] = parsed.get('genusOrAbove')
             else:
                 if(not hasSup and not syno):
@@ -633,7 +633,7 @@ def insertTax(cursor,idParent,idSyno,**tax):
     -----------
     cd_tax of the newly inserted taxon 
     """
-    SQL = "WITH a AS( SELECT %s AS name, %s AS name_auth, %s AS auth, %s AS name_rank, %s AS status, %s AS gbif_key, %s AS source, %s AS cd_sup, %s AS cd_syno), b AS (SELECT name, name_auth, CASE WHEN NOT auth ~ '^ *$' THEN auth ELSE NULL END AS auth, cd_rank,cd_sup::int, cd_syno::int, status, gbif_key, source::int FROM a JOIN tax_rank t ON a.name_rank=t.rank_name)  INSERT INTO taxon(name,name_auth,auth,tax_rank,cd_sup,cd_syno,status, gbifkey, source) SELECT * FROM b RETURNING cd_tax"
+    SQL = "WITH a AS( SELECT %s AS name, %s AS name_auth, %s AS auth, %s AS name_rank, %s AS status, %s::int AS gbif_key, %s::int AS source, %s::int AS cd_sup, %s::int AS cd_syno), b AS (SELECT name, name_auth, CASE WHEN NOT auth ~ '^ *$' THEN auth ELSE NULL END AS auth, cd_rank,cd_sup::int, cd_syno::int, status, gbif_key, source::int FROM a JOIN tax_rank t ON a.name_rank=t.rank_name)  INSERT INTO taxon(name,name_auth,auth,tax_rank,cd_sup,cd_syno,status, gbifkey, source) SELECT * FROM b RETURNING cd_tax"
     cursor.execute(SQL,(tax.get('name'), tax.get('name_auth'), tax.get('auth'), tax.get('tax_rank_name'),tax.get('status'), tax.get('gbifkey'),tax.get('source'),idParent,idSyno))
     idInserted, = cursor.fetchone()
     return idInserted
@@ -676,15 +676,23 @@ def manageInputTax(connection, insert, **inputTax):
     """
     insertedTax = list()
     res = {'cd_tax': 0, 'cd_tax_acc': 0 ,'alreadyInDb':False, 'foundGbif': False, 'matchedname': None, 'acceptedname':None, 'gbifkey':None,'syno':None, 'insertedTax': insertedTax}
-    
     """
     -------------Searching for the information-------------------------
     """
+    if inputTax.get('min_gbif_conf'):
+        min_conf=inputTax.get('min_gbif_conf')
+    else:
+        min_conf=90
+    if inputTax.get('no_gbif'):
+        NoGbif=True
+        inputTax['foundGbif']=False
+    else:
+        NoGbif=False
     syno = False
     # First check : is the taxon in the database
     inputTax.update(test_taxInDb(connection=connection,**inputTax))
-    if (not inputTax.get('alreadyInDb')):
-        inputTax.update(get_infoTax(**inputTax))
+    if (not inputTax.get('alreadyInDb') and not NoGbif):
+        inputTax.update(get_infoTax(min_conf,**inputTax))
         inputTax['syno'] = False
         # In case we did not find the taxon at first be it is indeed in the database
         if(inputTax.get('foundGbif')):
@@ -708,8 +716,10 @@ def manageInputTax(connection, insert, **inputTax):
         # 
         if(syno): 
             acceptedTax.update(test_taxInDb(connection=connection,**acceptedTax))
-            if(not acceptedTax.get('alreadyInDb')):
-                acceptedTax.update(get_infoTax(**acceptedTax))
+            if NoGbif:
+                acceptedTax['foundGbif']=False
+            if(not acceptedTax.get('alreadyInDb') and not NoGbif):
+                acceptedTax.update(get_infoTax(min_conf,**acceptedTax))
                 acceptedTax['syno'] = False
                 recheckAccepted = test_taxInDb(connection=connection,gbifkey=acceptedTax.get('key'))
                 acceptedTax['alreadyInDb'] = recheckAccepted.get('alreadyInDb')
@@ -740,7 +750,7 @@ def manageInputTax(connection, insert, **inputTax):
             parentTax.update(test_taxInDb(connection,**parentTax))
         if(not parentTax.get('alreadyInDb')):
             if(accepted.get('gbifkey') is None):
-                parentTax.update(get_infoTax(**parentTax))
+                parentTax.update(get_infoTax(min_conf,**parentTax))
                 if (not parentTax.get('foundGbif')):
                     raise MissingArgError(missingArg="'parentcanonicalname' or 'parentscientificname' or 'parentgbifkey'", message="Parent taxon not found in GBIF")
                 parents = get_gbif_parent(parentTax.get('key'))
@@ -888,35 +898,36 @@ def deleteTaxo(connection, cd_tax):
     res = cur.fetchall()
     cds_syno = [r[0] for r in res]
     SQL = "DELETE FROM taxon WHERE cd_tax =%s RETURNING cd_tax"
-    cursor.execute(SQL,[cd_tax])
-    cd_tax, =cursor.fetchone()
+    cur.execute(SQL,[cd_tax])
+    cd_tax, =cur.fetchone()
     connection.commit()
     cur.close()
     return {'cd_tax': cd_tax, 'cd_children':children, 'cd_synos':cds_syno}
 
-def modifyTaxo(connection, cd_tax, **putTaxArgs):
+def modifyTaxo(connection, **putTaxArgs):
+    cd_tax=putTaxArgs['cd_tax']
     inserted=[]
     cur= connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    SQL = "SELECT * FROM taxon WHERE cd.tax=%s"
+    SQL = "SELECT * FROM taxon WHERE cd_tax=%s"
     cur.execute(SQL,[cd_tax])
-    oldTax=dict(cur.fetchone)
+    oldTax=dict(cur.fetchone())
     cur.close()
     cur=connection.cursor()
     children = childrenList(cur,cd_tax)
     SQL = "SELECT cd_tax FROM taxon WHERE cd_syno = %s"
-    cur.execute(SQL[cd_tax])
+    cur.execute(SQL,[cd_tax])
     res = cur.fetchall()
     cds_syno = [r[0] for r in res]
     cur.close()
     if putTaxArgs.get('gbifkey'):
-        insert=manageInputTax(connection=connection,insert=T,**{'gbifkey':putTaxArgs.get('gbifkey')})
+        insert=manageInputTax(connection=connection,insert=True,**{'gbifkey':putTaxArgs.get('gbifkey')})
         inserted+=insert.get('insertedTax')
         if insert.get('alreadyInDb'):
             raise AlreadyExistsDbError(value=putTaxArgs.get('gbifkey'),field="gbifkey")
             #raise Exception('NewGbifkeyAlreadypresent')
         else:
             cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            SQL = "SELECT * FROM taxon WHERE cd.tax=%s"
+            SQL = "SELECT * FROM taxon WHERE cd_tax=%s"
             cur.execute(SQL, [insert.get('cd_tax')])
             newTax=dict(cur.fetchone())
             cur.close()
@@ -927,8 +938,8 @@ def modifyTaxo(connection, cd_tax, **putTaxArgs):
             connection.commit()
             cur.close()
     else:
-        if putTaxArgs.get('parentgbifkey') or putTaxArgs.get('parentcanonicalname') or putTaxArgs('parentscientificname'):
-            parentInsert = manageInputTax(connection=connection,insert=True, **{'gbifkey':putTaxArgs.get('parentgbifkey'),'canonicalname':putTaxArgs.get('parentcanonicalname'),'scientificname':putTaxArgs('parentscientificname')})
+        if putTaxArgs.get('parentgbifkey') or putTaxArgs.get('parentcanonicalname') or putTaxArgs.get('parentscientificname'):
+            parentInsert = manageInputTax(connection=connection,insert=True, **{'gbifkey':putTaxArgs.get('parentgbifkey'),'canonicalname':putTaxArgs.get('parentcanonicalname'),'scientificname':putTaxArgs.get('parentscientificname')})
             if oldTax.get('cd_sup') != parentInsert.get('cd_tax_acc'):
                 cur = connection.cursor()
                 SQL = "UPDATE taxon SET cd_sup=%s, gbifkey=NULL WHERE cd_tax=%s"
@@ -936,8 +947,8 @@ def modifyTaxo(connection, cd_tax, **putTaxArgs):
                 connection.commit()
                 cur.close()
             inserted+=parentInsert.get('insertedtax')
-        if putTaxArgs.get('synogbifkey') or putTaxArgs.get('synocanonicalname') or putTaxArgs('synoscientificname'):
-            synoInsert = manageInputTax(connection=connection,insert=True, **{'gbifkey':putTaxArgs.get('synogbifkey'),'canonicalname':putTaxArgs.get('synocanonicalname'),'scientificname':putTaxArgs('synoscientificname')})
+        if putTaxArgs.get('synogbifkey') or putTaxArgs.get('synocanonicalname') or putTaxArgs.get('synoscientificname'):
+            synoInsert = manageInputTax(connection=connection,insert=True, **{'gbifkey':putTaxArgs.get('synogbifkey'),'canonicalname':putTaxArgs.get('synocanonicalname'),'scientificname':putTaxArgs.get('synoscientificname')})
             if oldTax.get('cd_syno') != synoInsert.get('cd_tax_acc'):
                 cur = connection.cursor()
                 SQL = "UPDATE taxon SET cd_syno=%s, gbifkey=NULL WHERE cd_tax=%s"
@@ -965,6 +976,14 @@ def modifyTaxo(connection, cd_tax, **putTaxArgs):
         if putTaxArgs.get('status') and putTaxArgs.get('status') != oldTax.get('status'):
             SQL="UPDATE taxon SET status=%s, gbifkey=NULL WHERE cd_tax=%s"# We suppress the gbifkey because the new version of the taxon might lose compatibility with gbif...
             cur.execute(SQL,[putTaxArgs.get('status'),cd_tax])
+        if putTaxArgs.get('rank'):
+            newRank,newLevel=get_rank(connection,putTaxArgs.get('ranks'))
+            SQL="SELECT cd_rank WHERE rank_level=%s"
+            cur.execute(SQL,[newLevel])
+            newRank,=cur.fetchone()
+            if newRank!=oldTax.get('tax_rank'):
+                SQL="UPDATE taxon SET tax_rank=%s WHERE cd_tax=%s"
+                cur.execute(SQL,[newRank,cd_tax])
         cur.close()
     if putTaxArgs.get('reference') or putTaxArgs.get('cd_ref'):
         cur=connection.cursor()
@@ -976,3 +995,4 @@ def modifyTaxo(connection, cd_tax, **putTaxArgs):
         cur.close()
     connection.commit()
     return {'cd_tax':cd_tax, 'insertedTax':inserted}
+

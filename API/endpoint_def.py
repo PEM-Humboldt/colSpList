@@ -51,7 +51,17 @@ def get_roles(authenticated):
         raise Exception("User was not authenticated, no role can be determined")
     return g.user.get('roles')
 
+@parser.error_handler
+def handle_request_parsing_error(err):
+    code, msg = getattr(err, 'status_code', 400), getattr(err, 'message', 'Invalid Request')
+    restful.abort(code, message=msg)
 
+@parser.error_handler
+def handle_request_parsing_error(err, req, schema, *, error_status_code, error_headers):
+    """webargs error handler that uses Flask-RESTful's abort function to return
+    a JSON error response to the client.
+    """
+    abort(422, errors=str(err))
 
 
 # performance
@@ -1358,7 +1368,7 @@ class ManageTax(Resource):
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageTaxPut_err_hand(conn,**delTaxArgs)
+            res = manageTaxPut_err_hand(conn,**putTaxArgs)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -1566,4 +1576,3 @@ class MultiManageThreat(Resource):
         finally:
             conn.close()
         
-
