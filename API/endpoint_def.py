@@ -52,11 +52,6 @@ def get_roles(authenticated):
     return g.user.get('roles')
 
 @parser.error_handler
-def handle_request_parsing_error(err):
-    code, msg = getattr(err, 'status_code', 400), getattr(err, 'message', 'Invalid Request')
-    restful.abort(code, message=msg)
-
-@parser.error_handler
 def handle_request_parsing_error(err, req, schema, *, error_status_code, error_headers):
     """webargs error handler that uses Flask-RESTful's abort function to return
     a JSON error response to the client.
