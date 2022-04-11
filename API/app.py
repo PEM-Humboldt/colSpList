@@ -3,7 +3,7 @@ from flask_restful import Api, Resource, abort
 from webargs import fields, validate,missing
 from webargs.flaskparser import parser
 from webargs.flaskparser import use_args,use_kwargs
-from endpoint_def import CleanDb,Performance,User,AdminUsers,GetTaxon, TestEndem, TestThreat, TestExot, ListExot, ListEndem, ListThreat, ListTax, ListReferences, ManageEndem, ManageExot, ManageThreat, ManageTax, ManageRef, ListTestEndem, ListTestExot, ListTestThreat, MultiManageThreat, MultiManageTax, MultiManageEndem, MultiManageExot
+from endpoint_def import ListGetTaxon, CleanDb,Performance,User,AdminUsers,GetTaxon, TestEndem, TestThreat, TestExot, ListExot, ListEndem, ListThreat, ListTax, ListReferences, ManageEndem, ManageExot, ManageThreat, ManageTax, ManageRef, ListTestEndem, ListTestExot, ListTestThreat, MultiManageThreat, MultiManageTax, MultiManageEndem, MultiManageExot, ListManageRef
 PYTHONIOENCODING="UTF-8"
 
 
@@ -21,6 +21,7 @@ api.add_resource(ListExot,'/listExot')
 api.add_resource(ListThreat,'/listThreat')
 api.add_resource(ListTax,'/listTax')
 api.add_resource(GetTaxon,'/tax')
+api.add_resource(ListGetTaxon,'/tax/list')
 api.add_resource(ListReferences,'/listReferences')
 api.add_resource(ManageTax,'/manageTaxo')
 api.add_resource(MultiManageTax,'/manageTaxo/list')
@@ -31,6 +32,7 @@ api.add_resource(MultiManageExot,'/manageExot/list')
 api.add_resource(ManageThreat,'/manageThreat')
 api.add_resource(MultiManageThreat,'/manageThreat/list')
 api.add_resource(ManageRef,'/manageRef')
+api.add_resource(ListManageRef,'/manageRef/list')
 api.add_resource(CleanDb,'/cleanDb')
 api.add_resource(Performance,'/performance')
 api.add_resource(User,'/user')

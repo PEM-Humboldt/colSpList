@@ -357,7 +357,9 @@ def manageEndemPost_err_hand(connection,**inputEndem):
 
 def manageEndemDel_err_hand(connection,**delEndemArgs):
     try:
-        res= deleteEndem(cd_tax=delEndemArgs.get('cd_tax'),connection=connection,**delEndemArgs)
+        cd_tax=delEndemArgs['cd_tax']
+        delEndemArgs={k:v for (k,v) in delEndemArgs.items() if k!='cd_tax'}
+        res= deleteEndem(cd_tax=cd_tax,connection=connection,**delEndemArgs)
     except UnauthorizedValueError as e:
         if e.var in ('threatstatus','priority','endemstatus'):
             return {'error':str(e)}
@@ -372,7 +374,9 @@ def manageEndemDel_err_hand(connection,**delEndemArgs):
 
 def manageEndemPut_err_hand(connection, **putEndemArgs):
     try:
-        res= modifyEndem(cd_tax=delEndemArgs.get('cd_tax'),connection=connection,**putEndemArgs)
+        cd_tax=putEndemArgs['cd_tax']
+        putEndemArgs={k:v for (k,v) in putEndemArgs.items() if k!='cd_tax'}
+        res= modifyEndem(cd_tax=cd_tax,connection=connection,**putEndemArgs)
     except UnauthorizedValueError as e:
         if e.var in ('threatstatus','priority','endemstatus'):
             return {'error':str(e)}
@@ -404,7 +408,12 @@ def manageExotPost_err_hand(connection,**inputExot):
 
 def manageExotDel_err_hand(connection,**delExotArgs):
     try:
-        res= deleteExot(cd_tax=delExotArgs.get('cd_tax'),connection=connection,**delExotArgs)
+        cd_tax=delExotArgs['cd_tax']
+        delExotArgs={k:v for (k,v) in delExotArgs.items() if k!='cd_tax'}
+        res= deleteExot(cd_tax=cd_tax,connection=connection,**delExotArgs)
+    except UnauthorizedValueError as e:
+        if e.var in ('threatstatus','priority','endemstatus'):
+            return {'error':str(e)}
     except UnauthorizedValueError as e:
         if e.var in ('threatstatus','priority','endemstatus'):
             return {'error':str(e)}
@@ -419,7 +428,12 @@ def manageExotDel_err_hand(connection,**delExotArgs):
 
 def manageExotPut_err_hand(connection, **putExotArgs):
     try:
-        res= modifyExot(cd_tax=delExotArgs.get('cd_tax'),connection=connection,**putExotArgs)
+        cd_tax=putExotArgs['cd_tax']
+        putExotArgs={k:v for (k,v) in putExotArgs.items() if k!='cd_tax'}
+        res= modifyExot(cd_tax=cd_tax,connection=connection,**putExotArgs)
+    except UnauthorizedValueError as e:
+        if e.var in ('threatstatus','priority','endemstatus'):
+            return {'error':str(e)}
     except UnauthorizedValueError as e:
         if e.var in ('threatstatus','priority','endemstatus'):
             return {'error':str(e)}
@@ -451,7 +465,9 @@ def manageThreatPost_err_hand(connection,**inputThreat):
 
 def manageThreatDel_err_hand(connection,**delThreatArgs):
     try:
-        res= deleteThreat(cd_tax=delThreatArgs.get('cd_tax'),connection=connection,**delThreatArgs)
+        cd_tax=delThreatArgs['cd_tax']
+        delThreatArgs={k:v for (k,v) in delThreatArgs.items() if k!='cd_tax'}
+        res= deleteThreat(cd_tax=cd_tax,connection=connection,**delThreatArgs)
     except UnauthorizedValueError as e:
         if e.var in ('threatstatus','priority','endemstatus'):
             return {'error':str(e)}
@@ -466,7 +482,9 @@ def manageThreatDel_err_hand(connection,**delThreatArgs):
 
 def manageThreatPut_err_hand(connection, **putThreatArgs):
     try:
-        res= modifyThreat(cd_tax=delThreatArgs.get('cd_tax'),connection=connection,**putThreatArgs)
+        cd_tax=putThreatArgs['cd_tax']
+        putThreatArgs={k:v for (k,v) in putThreatArgs.items() if k!='cd_tax'}
+        res= modifyThreat(cd_tax=cd_tax,connection=connection,**putThreatArgs)
     except UnauthorizedValueError as e:
         if e.var in ('threatstatus','priority','endemstatus'):
             return {'error':str(e)}

@@ -69,7 +69,7 @@ ManageExotPutArgs={'cd_tax': fields.Int(required=True), 'is_alien': fields.Bool(
 ManageThreatPostArgs={'ref_citation': fields.List(fields.Str(),required=True), 'threatstatus': fields.Str(required=True), 'authorship': fields.Str(required=False), 'canonicalname': fields.Str(required=False), 'comments': fields.Str(required=False), 'gbifkey': fields.Int(required=False), 'link': fields.List(fields.Str(),required=False), 'min_gbif_conf': fields.Int(required=False), 'no_gbif': fields.Bool(required=False), 'parentcanonicalname': fields.Str(required=False), 'parentgbifkey': fields.Int(required=False), 'parentscientificname': fields.Str(required=False), 'priority': fields.Str(required=False), 'rank': fields.Str(required=False), 'replace_comment': fields.Bool(required=False), 'scientificname': fields.Str(required=False), 'syno': fields.Bool(required=False), 'synocanonicalname': fields.Str(required=False), 'synogbifkey': fields.Int(required=False), 'synoscientificname': fields.Str(required=False)}
 ManageThreatDeleteArgs={'cd_tax': fields.Int(required=True), 'cd_ref': fields.Int(required=False), 'delete_status': fields.Bool(required=False)}
 ManageThreatPutArgs={'cd_tax': fields.Int(required=True), 'ref_citation': fields.List(fields.Str(),required=True), 'threatstatus': fields.Str(required=True), 'comments': fields.Str(required=False), 'link': fields.List(fields.Str(),required=False), 'replace_comment': fields.Bool(required=False)}
-ManageRefPutArgs={'cd_ref': fields.Int(required=True), 'link': fields.List(fields.Str(),required=False), 'reference': fields.Str(required=False)}
+ManageRefPutArgs={'cd_ref': fields.Int(required=True), 'link': fields.Str(required=False), 'reference': fields.Str(required=False)}
 ManageRefDeleteArgs={'cd_ref': fields.Int(required=True), 'mergeInto': fields.Int(required=False)}
 CleanDbDeleteArgs={'ref_no_status': fields.Bool(required=False), 'status_no_ref': fields.Bool(required=False), 'syno_no_tax': fields.Bool(required=False), 'tax_no_status': fields.Bool(required=False)}
 PerformancePutArgs={'analysis': fields.Bool(required=True), 'vacuum': fields.Bool(required=True)}
@@ -79,7 +79,9 @@ UserDeleteArgs={}
 UserPutArgs={'newPassword': fields.Str(required=True)}
 AdminUsersGetArgs={'format': fields.Str(required=False)}
 AdminUsersDeleteArgs={'uid': fields.Int(required=False), 'username': fields.Str(required=False)}
+AdminUsersPutArgs={'grant_admin': fields.Bool(required=False), 'grant_edit': fields.Bool(required=False), 'grant_user': fields.Bool(required=False), 'newPassword': fields.Str(required=False), 'revoke_admin': fields.Bool(required=False), 'revoke_edit': fields.Bool(required=False), 'revoke_user': fields.Bool(required=False), 'uid': fields.Int(required=False), 'username': fields.Str(required=False)}
 #Multiple versions:
+MultiTaxGetArgs={'list':fields.List(fields.Nested(TaxGetArgs))}
 ListTestEndemGetArgs={'list':fields.List(fields.Nested(TestEndemGetArgs))}
 ListTestExotGetArgs={'list':fields.List(fields.Nested(TestExotGetArgs))}
 ListTestThreatGetArgs={'list':fields.List(fields.Nested(TestThreatGetArgs))}
@@ -95,4 +97,6 @@ ListManageEndemDeleteArgs={'list':fields.List(fields.Nested(ManageEndemDeleteArg
 ListManageThreatPutArgs={'list':fields.List(fields.Nested(ManageThreatPutArgs))}
 ListManageThreatPostArgs={'list':fields.List(fields.Nested(ManageThreatPostArgs))}
 ListManageThreatDeleteArgs={'list':fields.List(fields.Nested(ManageThreatDeleteArgs))}
-AdminUsersPutArgs={'grant_admin': fields.Bool(required=False), 'grant_edit': fields.Bool(required=False), 'grant_user': fields.Bool(required=False), 'newPassword': fields.Str(required=False), 'revoke_admin': fields.Bool(required=False), 'revoke_edit': fields.Bool(required=False), 'revoke_user': fields.Bool(required=False), 'uid': fields.Int(required=False), 'username': fields.Str(required=False)}
+MultiManageRefDeleteArgs={'list':fields.List(fields.Nested(ManageRefDeleteArgs))}
+MultiManageRefPutArgs={'list':fields.List(fields.Nested(ManageRefPutArgs))}
+

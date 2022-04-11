@@ -402,7 +402,22 @@ class GetTaxon(Resource):
             return res
         finally:
             conn.close()
-        
+
+"""Multiple version for the getTaxon class"""
+class ListGetTaxon(Resource):
+    @use_kwargs(input_args.MultiTaxGetArgs,location="query")
+    @use_kwargs(input_args.MultiTaxGetArgs,location="json")
+    def post(self,**inputTax):
+        try:
+            conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+            res=[GetTaxon_err_hand(conn, **i) for i in inputTax.get('list')]
+        except Abort500Error as e:
+            abort(500,str(e))
+        else:
+            return res
+        finally:
+            conn.close()
+
 
 class TestEndem(Resource):
     @use_kwargs(input_args.TestEndemGetArgs,location="query")
@@ -953,7 +968,7 @@ class ManageEndem(Resource):
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageEndemPost_err_hand(connection, **inputEndem)
+            res = manageEndemPost_err_hand(connection=conn, **inputEndem)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -990,7 +1005,7 @@ class ManageEndem(Resource):
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageEndemDel_err_hand(connection, **inputEndem)
+            res = manageEndemDel_err_hand(connection=conn, **inputEndem)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -1033,7 +1048,7 @@ class ManageEndem(Resource):
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageEndemPut_err_hand(connection, **inputEndem)
+            res = manageEndemPut_err_hand(connection=conn, **inputEndem)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -1049,7 +1064,7 @@ class ManageExot(Resource):
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageExotPost_err_hand(connection, **inputExot)
+            res = manageExotPost_err_hand(connection=conn, **inputExot)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -1064,7 +1079,7 @@ class ManageExot(Resource):
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageExotDel_err_hand(connection, **inputExot)
+            res = manageExotDel_err_hand(connection=conn, **inputExot)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -1079,7 +1094,7 @@ class ManageExot(Resource):
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageExotPut_err_hand(connection, **inputExot)
+            res = manageExotPut_err_hand(connection=conn, **inputExot)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -1168,7 +1183,7 @@ class ManageThreat(Resource):
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageThreatPost_err_hand(connection, **inputThreat)
+            res = manageThreatPost_err_hand(connection=conn, **inputThreat)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -1181,7 +1196,7 @@ class ManageThreat(Resource):
     def delete(self, **inputThreat):
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageThreatDel_err_hand(connection, **inputThreat)
+            res = manageThreatDel_err_hand(connection=conn, **inputThreat)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -1194,7 +1209,7 @@ class ManageThreat(Resource):
     def put(self, **inputThreat):
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
-            res = manageThreatPut_err_hand(connection, **inputThreat)
+            res = manageThreatPut_err_hand(connection=conn, **inputThreat)
         except Abort500Error as e:
             abort(500,str(e))
         else:
@@ -1384,7 +1399,7 @@ class ManageRef(Resource):
             conn.close()
 
     @auth.login_required(role='edit')
-    @use_kwargs(input_args.ManageRefDeleteArgs)
+    @use_kwargs(input_args.ManageRefPutArgs)
     def put(self,**putRefArgs):
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -1570,4 +1585,32 @@ class MultiManageThreat(Resource):
             return res
         finally:
             conn.close()
-        
+
+"""
+multiple version of manageReferences
+"""
+class ListManageRef(Resource):
+    @auth.login_required(role='edit')
+    @use_kwargs(input_args.MultiManageRefDeleteArgs)
+    def delete(self, **delMultiRefArgs):
+        try:
+            conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+            res = [manageRefDel_err_hand(conn,**i) for i in delMultiRefArgs.get('list')]
+            return res
+        except Abort500Error as e:
+            abort(500,str(e))
+        finally:
+            conn.close()
+
+    @auth.login_required(role='edit')
+    @use_kwargs(input_args.MultiManageRefPutArgs)
+    def put(self,**putMultiRefArgs):
+        try:
+            conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+            res = [manageRefPut_err_hand(conn,**i) for i in putMultiRefArgs.get('list')]
+            return res
+        except Abort500Error as e:
+            abort(500,str(e))
+        finally:
+            conn.close()
+

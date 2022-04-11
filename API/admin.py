@@ -22,7 +22,7 @@ def delTaxo_no_status(connection):
 
 def delReference_no_status(connection):
     cur=connection.cursor()
-    SQL= "WITH a AS(SELECT cd_ref FROM refer WHERE cd_ref NOT IN (SELECT source FROM taxon UNION SELECT cd_ref FROM ref_endem UNION SELECT cd_ref FROM ref_exot UNION SELECT cd_ref FROM ref_threat)) DELETE FROM refer WHERE cd_ref IN (SELECT cd_ref FROM a) RETURNING cd_ref"
+    SQL= "WITH a AS(SELECT source AS cd_ref FROM taxon UNION SELECT cd_ref FROM ref_endem UNION SELECT cd_ref FROM ref_exot UNION SELECT cd_ref FROM ref_threat), b AS (SELECT r.cd_ref, a.cd_ref IS NOT NULL refed FROM refer r LEFT JOIN a USING(cd_ref)) DELETE FROM refer AS r USING b WHERE r.cd_ref=b.cd_ref AND NOT b.refed RETURNING r.cd_ref"
     cur.execute(SQL)
     res = cur.fetchall()
     deleted=[r[0] for r in res]

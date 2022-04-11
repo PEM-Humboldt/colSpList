@@ -145,7 +145,7 @@ class UncompatibleStatusError(ValueError):
         super().__init__(self.message)
 
     def __str__(self):
-        return f'{self.message} (database status: {str(self.dbStatus)}, canonicalname: {str(self.providedStatus)})'
+        return f'{self.message} (database status: {str(self.dbStatus)}, provided status: {str(self.providedStatus)})'
     
 class UnauthorizedValueError(ValueError):
     def __init__(self, value=None, var=None, acceptable=[], message="Variable value out of authorized range"):
