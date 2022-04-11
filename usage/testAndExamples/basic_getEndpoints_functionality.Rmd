@@ -3,7 +3,7 @@ title: "Functionality tests and examples for the colSpListAPI: basic query endpo
 output: 
   github_document:
     toc: true
-    number_section: true
+    number_section: false
 ---
 
 In this document, we will test the base endpoints of the colSpList API (the endpoints which allow to query the API database).
@@ -18,12 +18,13 @@ In order to use this type of file, please install the packages *knitr* and *rmar
 1. If you want to compile the document as a markdown document for github, while applying all the code contained in the file
     + use ```rmarkdown::render("file.Rmd")```
 2. The python script is extracted from the Rmd document using (in R):
-    + ```source "../../extra/extractPythonRmd.R"; extractPythonRmd("file.Rmd")
+    + ```source ("../../extra/extractPythonRmd.R"); extractPythonRmd("file.Rmd")
     
 ***********************
 
 ```{python}
 import requests
+from pprint import pprint as pp
 api_url="http://colsplist.herokuapp.com"
 ```
 
@@ -45,14 +46,14 @@ The /testEndem endpoint allows to search a taxon in the API database and returns
 ```{python}
 toSend1={'canonicalname':'Accipiter collaris'}
 response = requests.get(api_url+endpoint, json=toSend1)
-response.json()
+pp(response.json())
 ```
 #### From scientific name
 
 ```{python}
 toSend2={'scientificname':'Odontophorus strophium (Gould, 1844)'}
 response = requests.get(api_url+endpoint, json=toSend2)
-response.json()
+pp(response.json())
 ```
 
 
@@ -60,7 +61,7 @@ response.json()
 ```{python}
 toSend3={'gbifkey':2480593}
 response = requests.get(api_url+endpoint, json=toSend3)
-response.json()
+pp(response.json())
 ```
 
 #### synonym of a species with an endemic status
@@ -68,7 +69,7 @@ response.json()
 ```{python}
 toSend4 = {'canonicalname':'Anas andium'}
 response = requests.get(api_url+endpoint, json=toSend4)
-response.json()
+pp(response.json())
 ```
 
 
@@ -79,7 +80,7 @@ response.json()
 ```{python}
 toSend5 = {'canonicalname':'Accipiter colloris'}
 response = requests.get(api_url+endpoint, json=toSend5)
-response.json()
+pp(response.json())
 ```
 
 
@@ -89,7 +90,7 @@ response.json()
 ```{python}
 toSend6={'canonicalname':'Elaeis guineensis'}
 response = requests.get(api_url+endpoint, json=toSend6)
-response.json()
+pp(response.json())
 ```
 
 
@@ -99,7 +100,7 @@ response.json()
 ```{python}
 toSend7={'canonicalname':'Espeletia grandiflora'}
 response = requests.get(api_url+endpoint, json=toSend7)
-response.json()
+pp(response.json())
 ```
 
 #### Species which does not exists
@@ -107,7 +108,7 @@ response.json()
 ```{python}
 toSend8={'canonicalname':'Asriwendosa machibibus'}
 response = requests.get(api_url+endpoint, json=toSend8)
-response.json()
+pp(response.json())
 ```
 
 
@@ -116,7 +117,7 @@ response.json()
 ```{python}
 toSend9={}
 response = requests.get(api_url+endpoint, json=toSend9)
-response.json()
+pp(response.json())
 ```
 
 # /testEndem/list
@@ -131,7 +132,7 @@ endpoint="/testEndem/list"
 ```{python}
 ListToSend={'list':[toSend1,toSend2,toSend3,toSend4,toSend5,toSend6,toSend7,toSend8,toSend9]}
 response = requests.post(api_url+endpoint, json=ListToSend)
-response.json()
+pp(response.json())
 ```
 
 # /testExot
@@ -152,14 +153,14 @@ The /testExot endpoint allows to search a taxon in the API database and returns 
 ```{python}
 toSend1={'canonicalname':'Gymnocorymbus ternetzi'}
 response = requests.get(api_url+endpoint, json=toSend1)
-response.json()
+pp(response.json())
 ```
 #### From scientific name
 
 ```{python}
 toSend2={'scientificname':'Rosa chinensis Jacq.'}
 response = requests.get(api_url+endpoint, json=toSend2)
-response.json()
+pp(response.json())
 ```
 
 
@@ -167,7 +168,7 @@ response.json()
 ```{python}
 toSend3={'gbifkey':5190769}
 response = requests.get(api_url+endpoint, json=toSend3)
-response.json()
+pp(response.json())
 ```
 
 #### synonym of a species with an exotic status
@@ -175,7 +176,7 @@ response.json()
 ```{python}
 toSend4 = {'canonicalname':'Cnidoscolus chayamansa'}
 response = requests.get(api_url+endpoint, json=toSend4)
-response.json()
+pp(response.json())
 ```
 
 
@@ -186,7 +187,7 @@ response.json()
 ```{python}
 toSend5 = {'canonicalname':'Rosa chinansis'}
 response = requests.get(api_url+endpoint, json=toSend5)
-response.json()
+pp(response.json())
 ```
 
 
@@ -196,7 +197,7 @@ response.json()
 ```{python}
 toSend6={'canonicalname':'Licania glauca'}
 response = requests.get(api_url+endpoint, json=toSend6)
-response.json()
+pp(response.json())
 ```
 
 
@@ -206,7 +207,7 @@ response.json()
 ```{python}
 toSend7={'canonicalname':'Espeletia grandiflora'}
 response = requests.get(api_url+endpoint, json=toSend7)
-response.json()
+pp(response.json())
 ```
 
 #### Species which does not exists
@@ -214,7 +215,7 @@ response.json()
 ```{python}
 toSend8={'canonicalname':'Asriwendosa machibibus'}
 response = requests.get(api_url+endpoint, json=toSend8)
-response.json()
+pp(response.json())
 ```
 
 
@@ -223,7 +224,7 @@ response.json()
 ```{python}
 toSend9={}
 response = requests.get(api_url+endpoint, json=toSend9)
-response.json()
+pp(response.json())
 ```
 
 # /testExot/list
@@ -238,7 +239,7 @@ endpoint="/testExot/list"
 ```{python}
 ListToSend={'list':[toSend1,toSend2,toSend3,toSend4,toSend5,toSend6,toSend7,toSend8,toSend9]}
 response = requests.post(api_url+endpoint, json=ListToSend)
-response.json()
+pp(response.json())
 ```
 
 # /testThreat
@@ -259,14 +260,14 @@ The /testThreat endpoint allows to search a taxon in the API database and return
 ```{python}
 toSend1={'canonicalname':'Podocarpus guatemalensis'}
 response = requests.get(api_url+endpoint, json=toSend1)
-response.json()
+pp(response.json())
 ```
 #### From scientific name
 
 ```{python}
 toSend2={'scientificname':'Puya ochroleuca Betancur & Callejas'}
 response = requests.get(api_url+endpoint, json=toSend2)
-response.json()
+pp(response.json())
 ```
 
 
@@ -274,7 +275,7 @@ response.json()
 ```{python}
 toSend3={'gbifkey':5789077}
 response = requests.get(api_url+endpoint, json=toSend3)
-response.json()
+pp(response.json())
 ```
 
 #### synonym of a species with an threatened status
@@ -282,7 +283,7 @@ response.json()
 ```{python}
 toSend4 = {'canonicalname':'Ptychoglossus danieli'}
 response = requests.get(api_url+endpoint, json=toSend4)
-response.json()
+pp(response.json())
 ```
 
 
@@ -293,7 +294,7 @@ response.json()
 ```{python}
 toSend5 = {'canonicalname':'Espeletia paypana'}
 response = requests.get(api_url+endpoint, json=toSend5)
-response.json()
+pp(response.json())
 ```
 
 
@@ -303,7 +304,7 @@ response.json()
 ```{python}
 toSend6={'canonicalname':'Tangara johannae'}
 response = requests.get(api_url+endpoint, json=toSend6)
-response.json()
+pp(response.json())
 ```
 
 
@@ -313,7 +314,7 @@ response.json()
 ```{python}
 toSend7={'canonicalname':'Espeletia grandiflora'}
 response = requests.get(api_url+endpoint, json=toSend7)
-response.json()
+pp(response.json())
 ```
 
 #### Species which does not exists
@@ -321,7 +322,7 @@ response.json()
 ```{python}
 toSend8={'canonicalname':'Asriwendosa machibibus'}
 response = requests.get(api_url+endpoint, json=toSend8)
-response.json()
+pp(response.json())
 ```
 
 
@@ -330,7 +331,7 @@ response.json()
 ```{python}
 toSend9={}
 response = requests.get(api_url+endpoint, json=toSend9)
-response.json()
+pp(response.json())
 ```
 
 
@@ -346,7 +347,7 @@ endpoint="/testThreat/list"
 ```{python}
 ListToSend={'list':[toSend1,toSend2,toSend3,toSend4,toSend5,toSend6,toSend7,toSend8,toSend9]}
 response = requests.post(api_url+endpoint, json=ListToSend)
-response.json()
+pp(response.json())
 ```
 
 # /listEndem
@@ -365,7 +366,7 @@ We will download the list and show the 5 first taxa:
 response = requests.get(api_url+endpoint)
 content=response.json()
 len(content)
-content[0:4]
+pp(content[0:4])
 ```
 
 
@@ -388,7 +389,7 @@ onlyPasserine={'childrenOf':'Passeriformes'}
 response = requests.get(api_url+endpoint,json=onlyPasserine)
 content=response.json()
 len(content)
-content[0:4]
+pp(content[0:4])
 ```
 
 ************************
@@ -409,7 +410,7 @@ We will ask for all the children of the genus Abies (Fir genus)
 ```{python}
 onlyAbies={'childrenOf':'Abies'}
 response = requests.get(api_url+endpoint,json=onlyAbies)
-response.json()
+pp(response.json())
 ```
 
 # /listExot
@@ -428,7 +429,7 @@ We will download the list and show the 5 first taxa:
 response = requests.get(api_url+endpoint)
 content=response.json()
 len(content)
-content[0:4]
+pp(content[0:4])
 ```
 
 
@@ -451,7 +452,7 @@ onlyPasserine={'childrenOf':'Passeriformes'}
 response = requests.get(api_url+endpoint,json=onlyPasserine)
 content=response.json()
 len(content)
-content[0:4]
+pp(content[0:4])
 ```
 
 ************************
@@ -472,7 +473,7 @@ We will ask for all the children of the genus Abies (Fir genus)
 ```{python}
 onlyAbies={'childrenOf':'Abies'}
 response = requests.get(api_url+endpoint,json=onlyAbies)
-response.json()
+pp(response.json())
 ```
 
 # /listThreat
@@ -491,7 +492,7 @@ We will download the list and show the 5 first taxa:
 response = requests.get(api_url+endpoint)
 content=response.json()
 len(content)
-content[0:4]
+pp(content[0:4])
 ```
 
 
@@ -514,7 +515,7 @@ onlyPasserine={'childrenOf':'Passeriformes'}
 response = requests.get(api_url+endpoint,json=onlyPasserine)
 content=response.json()
 len(content)
-content[0:4]
+pp(content[0:4])
 ```
 
 ************************
@@ -535,7 +536,7 @@ We will ask for all the children of the genus Abies (Fir genus)
 ```{python}
 onlyAbies={'childrenOf':'Abies'}
 response = requests.get(api_url+endpoint,json=onlyAbies)
-response.json()
+pp(response.json())
 ```
 
 # /tax
@@ -555,7 +556,7 @@ Therefore it might be useful to download the information from this cd_tax
 ```{python}
 toSend={'cd_tax':150}
 response = requests.get(api_url+endpoint, json=toSend)
-response.json()
+pp(response.json())
 ```
 
 ### From a scientific name
@@ -563,7 +564,7 @@ response.json()
 ```{python}
 toSend={'scientificname':"Urochloa brizantha (A.Rich.) R.D.Webster"}
 response = requests.get(api_url+endpoint, json=toSend)
-response.json()
+pp(response.json())
 ```
 
 ### From a canonical name
@@ -571,7 +572,7 @@ response.json()
 ```{python}
 toSend={'canonicalname':'Rottboellia cochinchinensis'}
 response = requests.get(api_url+endpoint, json=toSend)
-response.json()
+pp(response.json())
 ```
 
 ### Species which is not in database
@@ -581,7 +582,7 @@ The API send back an empty JSON variable
 ```{python}
 toSend={'canonicalname':'Amanita caesarea'}
 response = requests.get(api_url+endpoint, json=toSend)
-response.json()
+pp(response.json())
 ```
 
 ### Species which does not exist
@@ -591,7 +592,7 @@ The API send back an empty JSON variable
 ```{python}
 toSend={'canonicalname':'Inventadus inexistus'}
 response = requests.get(api_url+endpoint, json=toSend)
-response.json()
+pp(response.json())
 ```
 
 # /listTax
@@ -611,7 +612,7 @@ Here is the code to download the complete list of taxa in the database and show 
 response = requests.get(api_url+endpoint)
 content=response.json()
 len(content)
-content[0:4]
+pp(content[0:4])
 ```
 
 ************************
@@ -633,7 +634,7 @@ onlyBivalve={'childrenOf':'Bivalvia'}
 response = requests.get(api_url+endpoint,json=onlyBivalve)
 content=response.json()
 len(content)
-content[0:9]
+pp(content[0:9])
 ```
 
 ************************
@@ -665,7 +666,7 @@ Here to download the reference list and show the 10 first results:
 response = requests.get(api_url+endpoint)
 content=response.json()
 len(content)
-content[0:9]
+pp(content[0:9])
 ```
 
 ************************
@@ -685,7 +686,7 @@ onlyExot={'onlyExot':True}
 response = requests.get(api_url+endpoint, json=onlyExot)
 content=response.json()
 len(content)
-content[0:9]
+pp(content[0:9])
 ```
 
 
@@ -706,7 +707,7 @@ onlyThreat={'onlyThreat':True}
 response = requests.get(api_url+endpoint, json=onlyThreat)
 content=response.json()
 len(content)
-content[0:9]
+pp(content[0:9])
 ```
 
 
@@ -727,7 +728,7 @@ onlyEndem={'onlyEndem':True}
 response = requests.get(api_url+endpoint, json=onlyEndem)
 content=response.json()
 len(content)
-content[0:9]
+pp(content[0:9])
 ```
 
 

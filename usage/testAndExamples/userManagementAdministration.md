@@ -2,24 +2,24 @@ Functionality tests and examples for the colSpListAPI: user management
 and administration
 ================
 
--   [1 Before starting](#before-starting)
--   [2 User management](#user-management)
-    -   [2.1 /admin/users](#adminusers)
-        -   [2.1.1 GET : get a list of the
+-   [Before starting](#before-starting)
+-   [User management](#user-management)
+    -   [/admin/users](#adminusers)
+        -   [GET : get a list of the
             users](#get--get-a-list-of-the-users)
-        -   [2.1.2 DELETE: supress a user](#delete-supress-a-user)
-        -   [2.1.3 PUT : changing the rights or password of the
+        -   [DELETE: supress a user](#delete-supress-a-user)
+        -   [PUT : changing the rights or password of the
             users](#put--changing-the-rights-or-password-of-the-users)
-    -   [2.2 /user](#user)
-        -   [2.2.1 GET : getting my user information and getting a
+    -   [/user](#user)
+        -   [GET : getting my user information and getting a
             token](#get--getting-my-user-information-and-getting-a-token)
-        -   [2.2.2 PUT: changing my password](#put-changing-my-password)
-        -   [2.2.3 DELETE: Deleting my user](#delete-deleting-my-user)
-        -   [2.2.4 POST: creating a user](#post-creating-a-user)
--   [3 Performance](#performance)
-    -   [3.1 /performance](#performance-1)
-    -   [3.2 /cleanDb](#cleandb)
--   [4 Finally : getting back to the previous
+        -   [PUT: changing my password](#put-changing-my-password)
+        -   [DELETE: Deleting my user](#delete-deleting-my-user)
+        -   [POST: creating a user](#post-creating-a-user)
+-   [Performance](#performance)
+    -   [/performance](#performance-1)
+    -   [/cleanDb](#cleandb)
+-   [Finally : getting back to the previous
     state](#finally--getting-back-to-the-previous-state)
 
 In this document, we will test the endpoints of the colSpList API which
@@ -46,10 +46,11 @@ install the packages *knitr* and *rmarkdown* in R.
 import requests
 from requests.auth import HTTPBasicAuth
 from flask import jsonify
+from pprint import pprint as pp
 api_url="http://colsplist.herokuapp.com"
 ```
 
-# 1 Before starting
+# Before starting
 
 In order to apply the code of this document, we will need to have access
 to user management and administrative right. Since I cannot share here
@@ -86,7 +87,7 @@ res.json()
 # creation user with edit right
 ```
 
-    ## {'uid': 17, 'username': 'basicUser'}
+    ## {'uid': 25, 'username': 'basicUser'}
 
 ``` python
 res = requests.post(api_url+endpoint,json={'username':'editUser','password':'tempCode2'})
@@ -94,7 +95,7 @@ res.json()
 # grant edit to editUser
 ```
 
-    ## {'uid': 18, 'username': 'editUser'}
+    ## {'uid': 26, 'username': 'editUser'}
 
 ``` python
 endpoint = "/admin/users"
@@ -103,7 +104,7 @@ res.json()
 # Getting the tokens for these new users:
 ```
 
-    ## {'grant_edit': 18, 'grant_user': None, 'grant_admin': None, 'revoke_edit': None, 'revoke_admin': None, 'revoke_user': None, 'newPassword': None}
+    ## {'grant_edit': 26, 'grant_user': None, 'grant_admin': None, 'revoke_edit': None, 'revoke_admin': None, 'revoke_user': None, 'newPassword': None}
 
 ``` python
 endpoint="/user"
@@ -117,11 +118,11 @@ content=res.json()
 authTokenEditUser=HTTPBasicAuth(content.get('token'),'token')
 ```
 
-# 2 User management
+# User management
 
-## 2.1 /admin/users
+## /admin/users
 
-### 2.1.1 GET : get a list of the users
+### GET : get a list of the users
 
 A user with adminitrative right can download the list of the users and
 their rights:
@@ -130,16 +131,25 @@ their rights:
 endpoint = "/admin/users"
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
-print(users)
+pp(users)
 ```
 
-    ## [{'id': 2, 'username': 'marius', 'user': True, 'edit': True, 'admin': False}, {'id': 3, 'username': 'basic', 'user': True, 'edit': False, 'admin': False}, {'id': 4, 'username': 'basic2', 'user': True, 'edit': False, 'admin': False}, {'id': 1, 'username': 'admin', 'user': False, 'edit': False, 'admin': True}, {'id': 17, 'username': 'basicUser', 'user': True, 'edit': False, 'admin': False}, {'id': 18, 'username': 'editUser', 'user': True, 'edit': True, 'admin': False}]
+    ## [{'admin': False, 'edit': True, 'id': 2, 'user': True, 'username': 'marius'},
+    ##  {'admin': False, 'edit': False, 'id': 3, 'user': True, 'username': 'basic'},
+    ##  {'admin': False, 'edit': False, 'id': 4, 'user': True, 'username': 'basic2'},
+    ##  {'admin': True, 'edit': False, 'id': 1, 'user': False, 'username': 'admin'},
+    ##  {'admin': False,
+    ##   'edit': False,
+    ##   'id': 25,
+    ##   'user': True,
+    ##   'username': 'basicUser'},
+    ##  {'admin': False, 'edit': True, 'id': 26, 'user': True, 'username': 'editUser'}]
 
 In order to just obtain the user names:
 
 ``` python
 usernames=[r['username'] for r in users]
-print(usernames)
+pp(usernames)
 ```
 
     ## ['marius', 'basic', 'basic2', 'admin', 'basicUser', 'editUser']
@@ -149,12 +159,12 @@ this list:
 
 ``` python
 res=requests.get(api_url+endpoint, auth=authTokenBasicUser)
-print(res.text)
+pp(res.text)
 ```
 
-    ## Unauthorized Access
+    ## 'Unauthorized Access'
 
-### 2.1.2 DELETE: supress a user
+### DELETE: supress a user
 
 In order to show the process we will first create a user called
 ‘userToDel’ (see explanation further in this document:
@@ -169,7 +179,7 @@ requests.post(api_url+'/user',json={'username':'userToDel','password':'whatever'
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
 usernames=[r['username'] for r in users]
-print(usernames)
+pp(usernames)
 ```
 
     ## ['marius', 'basic', 'basic2', 'admin', 'basicUser', 'editUser', 'userToDel']
@@ -186,12 +196,12 @@ requests.delete(api_url+endpoint,json={'username':'userToDel'}, auth=authTokenAd
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
 usernames=[r['username'] for r in users]
-print(usernames)
+pp(usernames)
 ```
 
     ## ['marius', 'basic', 'basic2', 'admin', 'basicUser', 'editUser']
 
-### 2.1.3 PUT : changing the rights or password of the users
+### PUT : changing the rights or password of the users
 
 We create the userToDel again:
 
@@ -207,7 +217,7 @@ Now if we want to extract the user which have edition right only, we do:
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
 usernamesEdit=[r['username'] for r in users if r['edit']]
-print(usernamesEdit)
+pp(usernamesEdit)
 ```
 
     ## ['marius', 'editUser']
@@ -221,13 +231,13 @@ res=requests.put(api_url+endpoint, json={'username':'userToDel','grant_edit':Tru
 res.text
 ```
 
-    ## '{"grant_edit": 20, "grant_user": null, "grant_admin": null, "revoke_edit": null, "revoke_admin": null, "revoke_user": null, "newPassword": null}\n'
+    ## '{"grant_edit": 28, "grant_user": null, "grant_admin": null, "revoke_edit": null, "revoke_admin": null, "revoke_user": null, "newPassword": null}\n'
 
 ``` python
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
 usernamesEdit=[r['username'] for r in users if r['edit']]
-print(usernamesEdit)
+pp(usernamesEdit)
 ```
 
     ## ['marius', 'editUser', 'userToDel']
@@ -239,13 +249,13 @@ res=requests.put(api_url+endpoint, json={'username':'userToDel','revoke_edit':Tr
 res.text
 ```
 
-    ## '{"grant_edit": null, "grant_user": null, "grant_admin": null, "revoke_edit": 20, "revoke_admin": null, "revoke_user": null, "newPassword": null}\n'
+    ## '{"grant_edit": null, "grant_user": null, "grant_admin": null, "revoke_edit": 28, "revoke_admin": null, "revoke_user": null, "newPassword": null}\n'
 
 ``` python
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
 usernamesEdit=[r['username'] for r in users if r['edit']]
-print(usernamesEdit)
+pp(usernamesEdit)
 ```
 
     ## ['marius', 'editUser']
@@ -258,10 +268,10 @@ and “revoke_user”.
 
 ``` python
 userToDel,=[r for r in users if r['username']=='userToDel']
-print(userToDel)
+pp(userToDel)
 ```
 
-    ## {'id': 20, 'username': 'userToDel', 'user': True, 'edit': False, 'admin': False}
+    ## {'admin': False, 'edit': False, 'id': 28, 'user': True, 'username': 'userToDel'}
 
 ``` python
 requests.put(api_url+endpoint, json={'grant_admin':True,'username':'userToDel'}, auth=authTokenAdmin)
@@ -273,10 +283,10 @@ requests.put(api_url+endpoint, json={'grant_admin':True,'username':'userToDel'},
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
 userToDel,=[r for r in users if r['username']=='userToDel']
-print(userToDel)
+pp(userToDel)
 ```
 
-    ## {'id': 20, 'username': 'userToDel', 'user': True, 'edit': False, 'admin': True}
+    ## {'admin': True, 'edit': False, 'id': 28, 'user': True, 'username': 'userToDel'}
 
 ``` python
 requests.put(api_url+endpoint, json={'revoke_admin':True,'username':'userToDel'}, auth=authTokenAdmin)
@@ -288,10 +298,10 @@ requests.put(api_url+endpoint, json={'revoke_admin':True,'username':'userToDel'}
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
 userToDel,=[r for r in users if r['username']=='userToDel']
-print(userToDel)
+pp(userToDel)
 ```
 
-    ## {'id': 20, 'username': 'userToDel', 'user': True, 'edit': False, 'admin': False}
+    ## {'admin': False, 'edit': False, 'id': 28, 'user': True, 'username': 'userToDel'}
 
 ``` python
 requests.put(api_url+endpoint, json={'revoke_user':True,'username':'userToDel'}, auth=authTokenAdmin)
@@ -303,10 +313,14 @@ requests.put(api_url+endpoint, json={'revoke_user':True,'username':'userToDel'},
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
 userToDel,=[r for r in users if r['username']=='userToDel']
-print(userToDel)
+pp(userToDel)
 ```
 
-    ## {'id': 20, 'username': 'userToDel', 'user': False, 'edit': False, 'admin': False}
+    ## {'admin': False,
+    ##  'edit': False,
+    ##  'id': 28,
+    ##  'user': False,
+    ##  'username': 'userToDel'}
 
 ``` python
 requests.put(api_url+endpoint, json={'grant_user':True,'username':'userToDel'}, auth=authTokenAdmin)
@@ -318,10 +332,10 @@ requests.put(api_url+endpoint, json={'grant_user':True,'username':'userToDel'}, 
 res=requests.get(api_url+endpoint, auth=authTokenAdmin)
 users=res.json()
 userToDel,=[r for r in users if r['username']=='userToDel']
-print(userToDel)
+pp(userToDel)
 ```
 
-    ## {'id': 20, 'username': 'userToDel', 'user': True, 'edit': False, 'admin': False}
+    ## {'admin': False, 'edit': False, 'id': 28, 'user': True, 'username': 'userToDel'}
 
 Note that if you try to grant existing rights, or revoke unexisting
 ones, you will obtain an error message:
@@ -349,9 +363,9 @@ requests.delete(api_url+endpoint,json={'username':'userToDel'}, auth=authTokenAd
 
     ## <Response [200]>
 
-## 2.2 /user
+## /user
 
-### 2.2.1 GET : getting my user information and getting a token
+### GET : getting my user information and getting a token
 
 The GET method of the /user endpoints allows to get information about my
 user and create an authentication token for connecting securely to the
@@ -364,7 +378,7 @@ res = requests.get(api_url+endpoint, json={'create_token':True}, auth=authBasicU
 res.json()
 ```
 
-    ## {'id': 17, 'username': 'basicUser', 'roles': ['user'], 'authenticatedThrough': 'username/password', 'token': 'eyJhbGciOiJIUzUxMiIsImlhdCI6MTY0OTQ0MDMwNywiZXhwIjoxNjQ5NDU1MzA3fQ.eyJpZCI6MTd9.jrVYnIjuv8Q6oECj6YJRL5np86MruSFhth5UzbmPftAz3SM4Li_u2PLmouWSNyHaQ5AyfKVOydZ9FKBCH2K6UA'}
+    ## {'id': 25, 'username': 'basicUser', 'roles': ['user'], 'authenticatedThrough': 'username/password', 'token': 'eyJhbGciOiJIUzUxMiIsImlhdCI6MTY0OTY2NjQ4NiwiZXhwIjoxNjQ5NjgxNDg2fQ.eyJpZCI6MjV9.SyH--PvP4n_cDbm_KwLHXx15v0cXC7PLlQ-_imUZnAuOhg3TZtB9cX_G7nluOpGxYmhYgRmOowO0IwWc5WSRkA'}
 
 You may then use the token to get a more secure way to access the API:
 
@@ -376,9 +390,9 @@ res= requests.get(api_url+endpoint, json={'create_token':False}, auth=myAuth)
 res.json()
 ```
 
-    ## {'id': 17, 'username': 'basicUser', 'roles': ['user'], 'authenticatedThrough': 'Token'}
+    ## {'id': 25, 'username': 'basicUser', 'roles': ['user'], 'authenticatedThrough': 'Token'}
 
-### 2.2.2 PUT: changing my password
+### PUT: changing my password
 
 You may change your password with the following command:
 
@@ -400,9 +414,9 @@ res = requests.get(api_url+endpoint, auth=HTTPBasicAuth('basicUser','tempCode3')
 res.text
 ```
 
-    ## '{"id": 17, "username": "basicUser", "roles": ["user"], "authenticatedThrough": "username/password"}\n'
+    ## '{"id": 25, "username": "basicUser", "roles": ["user"], "authenticatedThrough": "username/password"}\n'
 
-### 2.2.3 DELETE: Deleting my user
+### DELETE: Deleting my user
 
 If we look at the list of users obtained from the administrative user:
 
@@ -410,7 +424,7 @@ If we look at the list of users obtained from the administrative user:
 res=requests.get(api_url+'/admin/users', auth=authTokenAdmin)
 users=res.json()
 usernames=[r['username'] for r in users]
-print(usernames)
+pp(usernames)
 ```
 
     ## ['marius', 'basic', 'basic2', 'admin', 'editUser', 'basicUser']
@@ -427,14 +441,14 @@ We look at the list again:
 res=requests.get(api_url+'/admin/users', auth=authTokenAdmin)
 users=res.json()
 usernames=[r['username'] for r in users]
-print(usernames)
+pp(usernames)
 ```
 
     ## ['marius', 'basic', 'basic2', 'admin', 'editUser']
 
 You can see that ‘basicUser’ disappeared from the list
 
-### 2.2.4 POST: creating a user
+### POST: creating a user
 
 Anyone might create a user in the API, without authentication required:
 
@@ -448,16 +462,16 @@ Let’s look at the user list again:
 res=requests.get(api_url+'/admin/users', auth=authTokenAdmin)
 users=res.json()
 usernames=[r['username'] for r in users]
-print(usernames)
+pp(usernames)
 ```
 
     ## ['marius', 'basic', 'basic2', 'admin', 'editUser', 'newUser']
 
 ‘newUser’ appeared on the list!
 
-# 3 Performance
+# Performance
 
-## 3.1 /performance
+## /performance
 
 The performance endpoint allows the administrative user to regularly
 apply the VACUUM ANALYSE commands to the database:
@@ -467,7 +481,7 @@ endpoint="/performance"
 res=requests.put(api_url+endpoint,json={'vacuum':True,'analysis':True},auth=authTokenAdmin)
 ```
 
-## 3.2 /cleanDb
+## /cleanDb
 
 The cleanDb endpoints allows to delete from the database the entries
 that may not be useful for the API:
@@ -494,7 +508,7 @@ res=requests.post(api_url+endpoint,json={'canonicalname':'Abies fraseri'},auth=a
 res.json()
 ```
 
-    ## {'cd_tax': 3762, 'cd_tax_acc': 3762, 'alreadyInDb': False, 'foundGbif': True, 'matchedname': 'Abies fraseri', 'acceptedname': 'Abies fraseri (Pursh) Poir.', 'gbifkey': 2685318, 'syno': False, 'insertedTax': [3761, 3762]}
+    ## {'cd_tax': 3842, 'cd_tax_acc': 3842, 'alreadyInDb': False, 'foundGbif': True, 'matchedname': 'Abies fraseri', 'acceptedname': 'Abies fraseri (Pursh) Poir.', 'gbifkey': 2685318, 'syno': False, 'insertedTax': [3841, 3842]}
 
 You may see that the function inserted 2 taxa (probably the genus and
 the species).
@@ -507,12 +521,12 @@ res=requests.delete(api_url+endpoint,auth=authEditUser,json={'ref_no_status':Tru
 res.json()
 ```
 
-    ## {'cd_taxs': [3761, 3762], 'cd_refs': [], 'cd_status': []}
+    ## {'cd_taxs': [3841, 3842], 'cd_refs': [], 'cd_status': []}
 
 As you may see in ‘cds_tax’ the two previously inserted taxa have been
 deleted!
 
-# 4 Finally : getting back to the previous state
+# Finally : getting back to the previous state
 
 Here, I will delete the users that were created for this document and
 give back the previous password to the ‘admin’ user:
@@ -525,7 +539,7 @@ res=requests.delete(api_url+endpoint,json=userToDel,auth=authAdmin)
 res.json()
 ```
 
-    ## {'uid': 18, 'username': 'editUser'}
+    ## {'uid': 26, 'username': 'editUser'}
 
 ``` python
 userToDel={'username':'newUser'}
@@ -533,7 +547,7 @@ res=requests.delete(api_url+endpoint,json=userToDel,auth=authAdmin)
 res.json()
 ```
 
-    ## {'uid': 21, 'username': 'newUser'}
+    ## {'uid': 29, 'username': 'newUser'}
 
 ``` python
 endpoint="/user"
