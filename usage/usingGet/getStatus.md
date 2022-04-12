@@ -125,23 +125,8 @@ res <- GET(paste0(baseURL,endpoint),query=list(canonicalname=speciesToTest),cont
 content(res)
 ```
 
-    ## $hasEndemStatus
-    ## [1] TRUE
-    ## 
-    ## $cd_nivel
-    ## [1] 3
-    ## 
-    ## $endemism
-    ## [1] "Casi endémica"
-    ## 
-    ## $comments
-    ## [1] "locality: Ecuador: Los Andes | occurrenceRemarks: Franja y región: Tierras bajas para especies cuyos límites superiores de distribución están alrededor de 1000-1200 m s.n.m. Partes alta y media del valle del río Cauca |Elevaciones medias para especies que se distribuyen entre ca. 800-l000 y 2000-2400 m s.n.m. Laderas del Valle del Cauca |Elevaciones medias para especies que se distribuyen entre ca. 800-l000 y 2000-2400 m s.n.m. Los enclaves secos del Dagua y del Patía | "
-    ## 
-    ## $references
-    ## [1] "Chaparro-Herrera, S., Echeverry-Galvis, M.A., Córdoba-Córdoba, S., Sua-Becerra, A. (2013). Listado actualizado de las aves endémicas y casi-endémicas de Colombia. 308 registros. Versión 5.1. http://doi.org/10.15472/tozuue"
-    ## 
-    ## $links
-    ## [1] "http://i2d.humboldt.org.co/ceiba/resource.do?r=biota_v14_n2_09"
+    ## $message
+    ## [1] "Internal Server Error"
 
 Testing whether it is alien/invasive:
 
@@ -151,26 +136,8 @@ res <- GET(paste0(baseURL,endpoint),query=list(canonicalname=speciesToTest),cont
 content(res)
 ```
 
-    ## $hasExotStatus
-    ## [1] FALSE
-    ## 
-    ## $cd_nivel
-    ## NULL
-    ## 
-    ## $is_alien
-    ## NULL
-    ## 
-    ## $is_invasive
-    ## NULL
-    ## 
-    ## $comments
-    ## NULL
-    ## 
-    ## $references
-    ## NULL
-    ## 
-    ## $links
-    ## NULL
+    ## $message
+    ## [1] "Internal Server Error"
 
 Testing whether *Espeletia paipana* is threatened in Colombia
 
@@ -181,6 +148,33 @@ res <- GET(paste0(baseURL,endpoint),query=list(canonicalname=speciesToTest),cont
 content(res)
 ```
 
+    ## $cd_tax
+    ## [1] 2831
+    ## 
+    ## $cd_tax_acc
+    ## [1] 2831
+    ## 
+    ## $alreadyInDb
+    ## [1] TRUE
+    ## 
+    ## $foundGbif
+    ## [1] TRUE
+    ## 
+    ## $matchedname
+    ## [1] "Espeletia paipana"
+    ## 
+    ## $acceptedname
+    ## [1] "Espeletia paipana S.Díaz & Pedraza"
+    ## 
+    ## $gbifkey
+    ## [1] 3105080
+    ## 
+    ## $syno
+    ## [1] FALSE
+    ## 
+    ## $insertedTax
+    ## list()
+    ## 
     ## $hasThreatStatus
     ## [1] TRUE
     ## 
@@ -210,7 +204,7 @@ response = requests.get(baseURL+endpoint, params={'canonicalname':speciesToCheck
 response.json()
 ```
 
-    ## {'hasEndemStatus': True, 'cd_nivel': 1, 'endemism': 'Especie de interés', 'comments': 'locality: Ecuador: Vertiente pacífica del Ecuador | occurrenceRemarks: Franja y región: Tierras bajas para especies cuyos límites superiores de distribución están alrededor de 1000-1200 m s.n.m. Región más húmeda inmediatamente al sur de la región 1, desde el bajo río Atrato hasta la parte media del valle del río Magdalena, incluyendo el alto río Sinú y alto río Nechí |Tierras bajas para especies cuyos límites superiores de distribución están alrededor de 1000-1200 m s.n.m. Andén del Pacífico, desde la zona media del Darién en límites con Panamá, al lado izquierdo del bajo río Atrato, hasta el Ecuador |Tierras bajas para especies cuyos límites superiores de distribución están alrededor de 1000-1200 m s.n.m. Alto valle del río Magdalena, principalmente en Tolima y Huila |Elevaciones medias para especies que se distribuyen entre ca. 800-l000 y 2000-2400 m s.n.m. Laderas más al norte de la cordillera Occidental y de la cordillera Central y la ladera nororiental de la Central hacia el sur hasta aproximadamente el límite sur de Caldas |Elevaciones medias para especies que se distribuyen entre ca. 800-l000 y 2000-2400 m s.n.m. Laderas del alto valle del río Magdalena principalmente en Tolima y Huila |Elevaciones medias para especies que se distribuyen entre ca. 800-l000 y 2000-2400 m s.n.m. Vertiente occidental de la cordillera Oriental, desde el sur de Cesar hasta Cundinamarca | ', 'references': 'Chaparro-Herrera, S., Echeverry-Galvis, M.A., Córdoba-Córdoba, S., Sua-Becerra, A. (2013). Listado actualizado de las aves endémicas y casi-endémicas de Colombia. 308 registros. Versión 5.1. http://doi.org/10.15472/tozuue | Corpocaldas 2010 | Donegan et al. 2010 | Laverde-R. Et al. 2005b | Parra-Hernández et al. 2007', 'links': 'http://i2d.humboldt.org.co/ceiba/resource.do?r=biota_v14_n2_09'}
+    ## {'cd_tax': 1287, 'cd_tax_acc': 1287, 'alreadyInDb': True, 'foundGbif': True, 'matchedname': 'Polyerata amabilis', 'acceptedname': 'Polyerata amabilis (Gould, 1853)', 'gbifkey': 5788536, 'syno': False, 'insertedTax': [], 'hasEndemStatus': True, 'cd_nivel': 1, 'endemism': 'Especie de interés', 'comments': 'locality: Ecuador: Vertiente pacífica del Ecuador | occurrenceRemarks: Franja y región: Tierras bajas para especies cuyos límites superiores de distribución están alrededor de 1000-1200 m s.n.m. Región más húmeda inmediatamente al sur de la región 1, desde el bajo río Atrato hasta la parte media del valle del río Magdalena, incluyendo el alto río Sinú y alto río Nechí |Tierras bajas para especies cuyos límites superiores de distribución están alrededor de 1000-1200 m s.n.m. Andén del Pacífico, desde la zona media del Darién en límites con Panamá, al lado izquierdo del bajo río Atrato, hasta el Ecuador |Tierras bajas para especies cuyos límites superiores de distribución están alrededor de 1000-1200 m s.n.m. Alto valle del río Magdalena, principalmente en Tolima y Huila |Elevaciones medias para especies que se distribuyen entre ca. 800-l000 y 2000-2400 m s.n.m. Laderas más al norte de la cordillera Occidental y de la cordillera Central y la ladera nororiental de la Central hacia el sur hasta aproximadamente el límite sur de Caldas |Elevaciones medias para especies que se distribuyen entre ca. 800-l000 y 2000-2400 m s.n.m. Laderas del alto valle del río Magdalena principalmente en Tolima y Huila |Elevaciones medias para especies que se distribuyen entre ca. 800-l000 y 2000-2400 m s.n.m. Vertiente occidental de la cordillera Oriental, desde el sur de Cesar hasta Cundinamarca | ', 'references': 'Chaparro-Herrera, S., Echeverry-Galvis, M.A., Córdoba-Córdoba, S., Sua-Becerra, A. (2013). Listado actualizado de las aves endémicas y casi-endémicas de Colombia. 308 registros. Versión 5.1. http://doi.org/10.15472/tozuue | Corpocaldas 2010 | Donegan et al. 2010 | Laverde-R. Et al. 2005b | Parra-Hernández et al. 2007', 'links': 'http://i2d.humboldt.org.co/ceiba/resource.do?r=biota_v14_n2_09'}
 
 Testing whether *Polyerata amabilis* is threatened in Colombia:
 
@@ -224,7 +218,7 @@ response = requests.get(baseURL+endpoint, params={'canonicalname':speciesToCheck
 response.json()
 ```
 
-    ## {'hasThreatStatus': False, 'cd_status': None, 'comments': None, 'references': None, 'links': None}
+    ## {'cd_tax': 1287, 'cd_tax_acc': 1287, 'alreadyInDb': True, 'foundGbif': True, 'matchedname': 'Polyerata amabilis', 'acceptedname': 'Polyerata amabilis (Gould, 1853)', 'gbifkey': 5788536, 'syno': False, 'insertedTax': [], 'hasThreatStatus': False, 'cd_status': None, 'comments': None, 'references': None, 'links': None}
 
 Testing whether *Acacia decurrens* is alien/invasive in Colombia:
 
@@ -238,4 +232,4 @@ response = requests.get(baseURL+endpoint, params={'canonicalname':speciesToCheck
 response.json()
 ```
 
-    ## {'hasExotStatus': True, 'is_alien': True, 'is_invasive': True, 'comments': 'Altitud máxima: 3200 | Altitud máxima Unit: m.s.n.m. | Altitud mínima: 1600 | Altitud mínima Unit: m.s.n.m. | Asociación invasiva: No se encontraron datos | Aspectos generales de invasividad: Producción abundante de semillas, rápida germinación, alta viabilidad, resistencia a inundaciones y fuego, alta producción vegetativa, sustancias alelopáticas | Causas de introducción: Usos ornamentales | Distribución como exótica: Cosmopólita | Distribución nativa: ARG , AUS , NZL , URY , ZAF | Estatus: Exótica | Translocada | Factores limitantes para el establecimiento: Heladas, no tiene éxito por debajo de los 1000 msnm, zonas húmedas y secas tropicales | Hábito: Terrestre | Impactos de introducción: Migración de zonas de cultivos a espacios naturales, aumento regímenes de incendio, restricción en la regeneración natural de especies nativas, impedimento en el movimiento de fauna | Introducida después de (año): 1963 | Medidas de manejo y control: En África se ha evidenciado el control biológico sobre semillas con la especie Melanterius maculatus (Curculionidae) y en Nueva Zelanda con Bruchophagus acaciae (Hymenoptera) | Observaciones de ocurrencia: Frecuentemente en zonas de incendios y áreas perturbadas | pH: 7 | Precipitación máxima: 1200 | Precipitación máxima Unit: mm | Precipitación mínima: 750 | Precipitación mínima Unit: mm | Puntaje Riesgo de Invasión: 5 | Puntaje Riesgo de Invasión Remarks: Fuente: I3N | Riesgo de invasión: Alto riesgo | Temperatura máxima: 18 | Temperatura máxima Unit: °C | Temperatura mínima: 14 | Temperatura mínima Unit: °C | Tipo de dispersión: Anemocoría, zoocoría | Tipo de introducción: Intencional | Tipo de reproducción: Semillas | Tipo de suelo: Arenosos-arcillosos | Vías de introducción: Sembrada', 'references': ' Instituto de Investigación de Recursos Biológicos Alexander von Humboldt (2020). Base de datos de información ecológica e invasividad de especies exóticas prioritarias de flora y fauna de Colombia. 43 registros. | Cárdenas D., Baptiste M.P., Castaño N. (2017). Plantas exóticas con alto potencial de invasión en Colombia. Instituto de Investigación de Recursos Biológicos Alexander von Humboldt. Bogotá, D. C., Colombia. 295 p. | Mora, M. F., Rubio J., Ocampo R. & Barrera J.I. (2015). Catálogo de especies invasoras del territorio CAR. Publicado por Pontificia Universidad Javeriana & Corporación Autónoma Regional de Cundinamarca – CAR, 238 pp. | Piedad Baptiste E M, Marcela García L. L, Acevedo-Charry O, Acosta A, Alarcón J, Arévalo E, Carolina Avella G, Blanco A, E. Botero J, Rancés Caicedo-Portilla J, Camelo Martínez C, Camelo-Calvo M P, Certuche-Cubillos K, Chasqui L, Cifuentes Y, Julián Contreras P, Córdoba S, Correa J, Fernanda Díaz M, DoNascimiento C, Alexandra Duque R, Victoria Flechas S, Dimitri Forero I, José Gómez Hoyos A, González Durán G, Guayara S, Carlos Guetiva J, Jiménez G, Larrahondo M, Maldonado Ocampo J, Medina-Rangel G F, Merino M C, Mesa L M, Millán M V, Mojica H, César Neita Moreno J, del Pilar Parrado M, Camilo Pérez S, Ramírez W, Rojas V, Rojas Z, Urbina-Cardona N, Paola Velásquez L, Wong L J, Pagad S (2020). Global Register of Introduced and Invasive Species - Colombia. Version 1.5. Invasive Species Specialist Group ISSG.', 'links': 'http://i2d.humboldt.org.co/ceiba/resource.do?r=lista_colombia_exoticas_2020 | https://www.gbif.org/dataset/168568e7-eb5f-4ef6-8c59-f73ceaf57e91'}
+    ## {'cd_tax': 7, 'cd_tax_acc': 7, 'alreadyInDb': True, 'foundGbif': True, 'matchedname': 'Acacia decurrens', 'acceptedname': 'Acacia decurrens (J.C.Wendl.) Willd.', 'gbifkey': 2979778, 'syno': False, 'insertedTax': [], 'hasExotStatus': True, 'is_alien': True, 'is_invasive': True, 'comments': 'Altitud máxima: 3200 | Altitud máxima Unit: m.s.n.m. | Altitud mínima: 1600 | Altitud mínima Unit: m.s.n.m. | Asociación invasiva: No se encontraron datos | Aspectos generales de invasividad: Producción abundante de semillas, rápida germinación, alta viabilidad, resistencia a inundaciones y fuego, alta producción vegetativa, sustancias alelopáticas | Causas de introducción: Usos ornamentales | Distribución como exótica: Cosmopólita | Distribución nativa: ARG , AUS , NZL , URY , ZAF | Estatus: Exótica | Translocada | Factores limitantes para el establecimiento: Heladas, no tiene éxito por debajo de los 1000 msnm, zonas húmedas y secas tropicales | Hábito: Terrestre | Impactos de introducción: Migración de zonas de cultivos a espacios naturales, aumento regímenes de incendio, restricción en la regeneración natural de especies nativas, impedimento en el movimiento de fauna | Introducida después de (año): 1963 | Medidas de manejo y control: En África se ha evidenciado el control biológico sobre semillas con la especie Melanterius maculatus (Curculionidae) y en Nueva Zelanda con Bruchophagus acaciae (Hymenoptera) | Observaciones de ocurrencia: Frecuentemente en zonas de incendios y áreas perturbadas | pH: 7 | Precipitación máxima: 1200 | Precipitación máxima Unit: mm | Precipitación mínima: 750 | Precipitación mínima Unit: mm | Puntaje Riesgo de Invasión: 5 | Puntaje Riesgo de Invasión Remarks: Fuente: I3N | Riesgo de invasión: Alto riesgo | Temperatura máxima: 18 | Temperatura máxima Unit: °C | Temperatura mínima: 14 | Temperatura mínima Unit: °C | Tipo de dispersión: Anemocoría, zoocoría | Tipo de introducción: Intencional | Tipo de reproducción: Semillas | Tipo de suelo: Arenosos-arcillosos | Vías de introducción: Sembrada', 'references': ' Instituto de Investigación de Recursos Biológicos Alexander von Humboldt (2020). Base de datos de información ecológica e invasividad de especies exóticas prioritarias de flora y fauna de Colombia. 43 registros. | Cárdenas D., Baptiste M.P., Castaño N. (2017). Plantas exóticas con alto potencial de invasión en Colombia. Instituto de Investigación de Recursos Biológicos Alexander von Humboldt. Bogotá, D. C., Colombia. 295 p. | Mora, M. F., Rubio J., Ocampo R. & Barrera J.I. (2015). Catálogo de especies invasoras del territorio CAR. Publicado por Pontificia Universidad Javeriana & Corporación Autónoma Regional de Cundinamarca – CAR, 238 pp. | Piedad Baptiste E M, Marcela García L. L, Acevedo-Charry O, Acosta A, Alarcón J, Arévalo E, Carolina Avella G, Blanco A, E. Botero J, Rancés Caicedo-Portilla J, Camelo Martínez C, Camelo-Calvo M P, Certuche-Cubillos K, Chasqui L, Cifuentes Y, Julián Contreras P, Córdoba S, Correa J, Fernanda Díaz M, DoNascimiento C, Alexandra Duque R, Victoria Flechas S, Dimitri Forero I, José Gómez Hoyos A, González Durán G, Guayara S, Carlos Guetiva J, Jiménez G, Larrahondo M, Maldonado Ocampo J, Medina-Rangel G F, Merino M C, Mesa L M, Millán M V, Mojica H, César Neita Moreno J, del Pilar Parrado M, Camilo Pérez S, Ramírez W, Rojas V, Rojas Z, Urbina-Cardona N, Paola Velásquez L, Wong L J, Pagad S (2020). Global Register of Introduced and Invasive Species - Colombia. Version 1.5. Invasive Species Specialist Group ISSG.', 'links': 'http://i2d.humboldt.org.co/ceiba/resource.do?r=lista_colombia_exoticas_2020 | https://www.gbif.org/dataset/168568e7-eb5f-4ef6-8c59-f73ceaf57e91'}

@@ -138,7 +138,7 @@ def testEndemStatus(connection,cd_tax):
     if hasEndemStatus:
         res.update(getEndemStatus(cur,cd_tax))
     else:
-        res.update({'cd_nivel':None, 'descr_endem_es': None, 'comments': None, 'references': None, 'links': None})
+        res.update({'cd_nivel':None, 'endemism': None, 'endemism_en':None,  'comments': None, 'references': None, 'links': None})
     return res
 
 def testExotStatus(connection,cd_tax):
@@ -175,7 +175,7 @@ def testExotStatus(connection,cd_tax):
     if hasExotStatus:
         res.update(getExotStatus(cur,cd_tax))
     else:
-        res.update({'cd_nivel':None, 'is_alien': None, 'is_invasive': None,'comments': None,'references': None, 'links': None})
+        res.update({'is_alien': None, 'is_invasive': None,'comments': None,'references': None, 'links': None})
     return res
 
 def testThreatStatus(connection,cd_tax):
