@@ -98,6 +98,7 @@ def mergeRefs(connection, into_ref, from_ref):
     SQL="UPDATE taxon SET source=%s WHERE source=%s -- RETURNING cd_tax"
     cur.execute(SQL,[into_ref,from_ref])
     cur.close()
+    return {'cd_ref_modif':into_ref}
 
 def deleteRef(connection, cd_ref):
     cur=connection.cursor()
@@ -110,6 +111,7 @@ def deleteRef(connection, cd_ref):
     SQL = "DELETE FROM refer WHERE cd_ref=%s"
     cur.execute(SQL,[cd_ref])
     cur.close()
+    return {'cd_ref_del':cd_ref}
 
 
 
@@ -154,6 +156,7 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
         If the taxon already has a threat status different to the one provided by the user, raises this exception and stops execution
     """
     # test whether status is compatible with the database specification
+    resRet=dict()
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     SQL="SELECT cd_status FROM threat_status"
     cur.execute(SQL)
@@ -174,7 +177,9 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
             if inputThreat.get('priority'):
                 if inputThreat.get('priority')=='high':
                     cur.close()
-                    return modifyThreat(cd_tax,connection,**inputThreat)
+                    resRet.update(modifyThreat(cd_tax,connection,**inputThreat))
+                    resRet.update({'status_replaced':True, 'status_created':False})
+                    return resRet
                 if inputThreat.get('priority')!='low':
                     raise UnauthorizedValueError(value=inputThreat.get('priority'), var='priority',acceptable=['low','high'])
                     #Exception('unrecognisedPriority')
@@ -189,11 +194,13 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
         with connection.cursor() as cur:
             cdRefs = [manageSource(cur,inputThreat['ref_citation'][i],inputThreat.get('link')[i] if bool(inputThreat.get('link')) else None) for i in range(0,len(inputThreat['ref_citation']))]
             if not statusExists:
+                resRet.update({'status_replaced':False, 'status_created':True})
                 # if it is compatible with an existing status, insert the new source
                 SQL = "INSERT INTO threat(cd_tax,cd_status,comments) VALUES (%s,%s,%s)"
                 cur.execute(SQL, [cd_tax, inputThreat['threatstatus'],inputThreat.get('comments')])
             # if it does not exist insert the source, the status and make the links
             else:
+                resRet.update({'status_replaced':False, 'status_created':False})
                 if inputThreat.get('comments'):
                     if inputThreat.get('replace_comment'):
                         SQL = "UPDATE threat SET comments=%s WHERE cd_tax=%s"
@@ -204,7 +211,8 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
             for i in range(len(cdRefs)):
                 SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_threat AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_threat(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
                 cur.execute(SQL,[cdRefs[i],cd_tax])
-    return {'cd_tax': cd_tax,'cdRefs': cdRefs}
+    resRet.update({'cd_tax': cd_tax,'cdRefs': cdRefs})
+    return resRet
 
 def deleteThreat(cd_tax,connection,**inputThreat):
     cur = connection.cursor()
@@ -307,6 +315,7 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
         If the taxon already has a endemism status different to the one provided by the user, raises this exception and stops execution
     """
     # test whether status is compatible with the database specification
+    resRet=dict()
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     SQL="SELECT * FROM (SELECT descr_endem_es AS cd_status, 1 AS type_order, cd_nivel FROM nivel_endem UNION SELECT descr_endem_en AS cd_status,2,cd_nivel FROM nivel_endem UNION SELECT cd_nivel::text AS cd_status,3,cd_nivel FROM nivel_endem) AS foo ORDER BY type_order, cd_nivel"
     cur.execute(SQL)
@@ -331,8 +340,12 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
             if inputEndem.get('priority'):
                 if inputEndem.get('priority')=='high':
                     cur.close()
-                    return modifyEndem(cd_tax,connection,**inputEndem)
-                if inputEndem.get('priority')!='low':
+                    resRet.update(modifyEndem(cd_tax,connection,**inputEndem))
+                    resRet.update({'status_replaced':True, 'status_created':False})
+                    return resRet
+                elif inputEndem.get('priority')=='low':
+                    pass
+                else:
                     raise UnauthorizedValueError(value=inputEndem.get('priority'), var='priority',acceptable=['low','high'])
             sameStatus = (oldStatus.get('cd_nivel') == nivInput)
             if not sameStatus and inputEndem.get('priority')!='low':
@@ -343,10 +356,12 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
         with connection.cursor() as cur:
             cdRefs = [manageSource(cur,inputEndem['ref_citation'][i],inputEndem.get('link')[i] if bool(inputEndem.get('link')) else None) for i in range(0,len(inputEndem['ref_citation']))]
             if not statusExists:
+                resRet.update({'status_created':True,'status_replaced':False})
                 # if it is compatible with an existing status, insert the new source
                 SQL = "INSERT INTO endemic(cd_tax,cd_nivel,comments) VALUES (%s,%s,%s)"
                 cur.execute(SQL, [cd_tax, nivInput,inputEndem.get('comments')])
             else:
+                resRet.update({'status_created':False,'status_replaced':False})
                 if inputEndem.get('comments'):
                     if inputEndem.get('replace_comment'):
                         SQL = "UPDATE endemic SET comments=%s WHERE cd_tax=%s"
@@ -358,7 +373,8 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
             for i in range(len(cdRefs)):
                 SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_endem AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_endem(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
                 cur.execute(SQL,[cdRefs[i],cd_tax])
-    return {'cd_tax': cd_tax,'cdRefs': cdRefs}
+    resRet.update({'cd_tax': cd_tax,'cdRefs': cdRefs})
+    return resRet
 
 def deleteEndem(cd_tax,connection,**inputEndem):
     cur = connection.cursor()
@@ -462,6 +478,7 @@ def manageInputExot(cd_tax,connection,**inputExot):
     Exception: "The taxon already exists in the database with another alien/invasive status"
         If the taxon already has a alien/invasive status different to the one provided by the user, raises this exception and stops execution
     """
+    resRet=dict()
     # test whether status is compatible with the database specification
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     # find the  status if it exists in the database
@@ -475,7 +492,9 @@ def manageInputExot(cd_tax,connection,**inputExot):
         if inputExot.get('priority'):
             if inputExot.get('priority')=='high':
                 cur.close()
-                return modifyExot(cd_tax,connection,**inputExot)
+                resRet.update(modifyExot(cd_tax,connection,**inputExot))
+                resRet.update({'status_replaced':True, 'status_created':False})
+                return resRet
             if inputExot.get('priority')!='low':
                 raise UnauthorizedValueError(value=inputExot.get('priority'), var='priority',acceptable=['low','high'])
                 #raise Exception('unrecognisedPriority')
@@ -489,10 +508,12 @@ def manageInputExot(cd_tax,connection,**inputExot):
         with connection.cursor() as cur:
             cdRefs = [manageSource(cur,inputExot['ref_citation'][i],inputExot.get('link')[i] if bool(inputExot.get('link')) else None) for i in range(0,len(inputExot['ref_citation']))]
             if not statusExists:
+                resRet.update({'status_created':True,'status_replaced':False})
                 # if it is compatible with an existing status, insert the new source
                 SQL = "INSERT INTO exot(cd_tax,is_alien,is_invasive,comments) VALUES (%s,%s,%s,%s)"
                 cur.execute(SQL, [cd_tax,inputExot.get('is_alien'),inputExot.get('is_invasive'),inputExot.get('comments')])
             else:
+                resRet.update({'status_created':False,'status_replaced':False})
                 if inputExot.get('comments'):
                     if inputExot.get('replace_comment'):
                         SQL = "UPDATE exot SET comments=%s WHERE cd_tax=%s"
@@ -504,7 +525,8 @@ def manageInputExot(cd_tax,connection,**inputExot):
             for i in range(len(cdRefs)):
                 SQL = "WITH a AS (SELECT %s AS cd_ref, %s AS cd_tax), b AS(SELECT a.cd_ref,a.cd_tax,rt.id FROM a LEFT JOIN ref_exot AS rt USING (cd_ref,cd_tax)) INSERT INTO ref_exot(cd_ref, cd_tax) SELECT cd_ref,cd_tax FROM b WHERE id IS NULL"
                 cur.execute(SQL,[cdRefs[i],cd_tax])
-    return {'cd_tax': cd_tax,'cdRefs': cdRefs}
+    resRet.update({'cd_tax': cd_tax,'cdRefs': cdRefs})
+    return resRet
 
 def deleteExot(cd_tax,connection,**inputExot):
     cur = connection.cursor()

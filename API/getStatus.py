@@ -240,7 +240,7 @@ def getListExot(connection, listChildren, formatExport):
 
 def getListEndem(connection, listChildren, formatExport):
     if len(listChildren)==0:
-        SQL="SELECT * FROM endem_list"
+        SQL="SELECT cd_tax, scientificname, parentname, tax_rank, gbifkey, synonyms, el.cd_status as endemism, ne.descr_endem_en as endemism_en, comments, \"references\", links FROM endem_list el JOIN nivel_endem ne ON el.cd_status=ne.descr_endem_es"
         if formatExport=="CSV":
              res = pd.read_sql_query(SQL, connection)
         else:
@@ -249,7 +249,7 @@ def getListEndem(connection, listChildren, formatExport):
             res = cur.fetchall()
             cur.close()
     else:
-        SQL="SELECT * FROM endem_list WHERE cd_tax IN (SELECT UNNEST( %s ))"
+        SQL="SELECT cd_tax, scientificname, parentname, tax_rank, gbifkey, synonyms, el.cd_status as endemism, ne.descr_endem_en as endemism_en, comments, \"references\", links FROM endem_list el JOIN nivel_endem ne ON el.cd_status=ne.descr_endem_es WHERE cd_tax IN (SELECT UNNEST( %s ))"
         if formatExport=="CSV":
             cur=connection.cursor()
             query=cur.mogrify(SQL,[listChildren])

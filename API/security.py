@@ -172,7 +172,16 @@ def verify_auth_token(token,cur):
     return user
 
 def get_user_list(cursor):
-    SQL = "SELECT id, username,apiuser AS user,edit_auth AS edit, admin FROM users"
+    SQL = "SELECT id as uid, username,apiuser AS user,edit_auth AS edit, admin FROM users"
     cursor.execute(SQL)
     res=cursor.fetchall()
+    for i in res:
+        i['roles']=[]
+        if i.pop('user'):
+            i['roles']+=['user']
+        if i.pop('admin'):
+            i['roles']+=['admin']
+        if i.pop('edit'):
+            i['roles']+=['edit']
     return res
+

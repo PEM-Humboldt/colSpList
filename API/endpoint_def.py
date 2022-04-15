@@ -187,6 +187,7 @@ class User(Resource):
             if userArgs.get('create_token'):
                 token = generate_auth_token(conn,g.user.get('id')).decode('ascii')
                 user['token']=token
+            user['uid'] = user.pop('id')
             return user
         finally:
             conn.close()
@@ -291,12 +292,12 @@ class AdminUsers(Resource):
 		roles: List(Str)
 			List of roles (permissions, rights) for a user
         """
-        conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-        cur=conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        user_list=get_user_list(cur)
-        cur.close()
-        conn.close()
-        return user_list
+        try:
+            conn=psycopg2.connect(DATABASE_URL, sslmode='require')
+            user_list=adminUserGet_err_hand(conn)
+            return user_list
+        finally:
+            conn.close()
     
     @auth.login_required(role='admin')
     @use_kwargs(input_args.AdminUsersPutArgs)
@@ -1392,9 +1393,11 @@ class ManageRef(Resource):
     def delete(self, **delRefArgs):
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-            manageRefDel_err_hand(conn,**delRefArgs)
+            res= manageRefDel_err_hand(conn,**delRefArgs)
         except Abort500Error as e:
             abort(500,str(e))
+        else:
+            return res
         finally:
             conn.close()
 
@@ -1403,9 +1406,11 @@ class ManageRef(Resource):
     def put(self,**putRefArgs):
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-            manageRefPut_err_hand(conn,**putRefArgs)
+            res=manageRefPut_err_hand(conn,**putRefArgs)
         except Abort500Error as e:
             abort(500,str(e))
+        else:
+            return res
         finally:
             conn.close()
     

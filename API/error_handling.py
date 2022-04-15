@@ -257,7 +257,7 @@ def userPut_err_hand(connection,**userArgs):
         return {'error':str(e)}
     else:
         connection.commit()
-        return uid
+        return {'uid':uid}
     finally: 
         cur.close()
     
@@ -499,18 +499,21 @@ def manageThreatPut_err_hand(connection, **putThreatArgs):
 
 def manageRefDel_err_hand(connection, **delRefArgs):
     try:
+        res=dict()
         if delRefArgs.get('mergeInto'):
-            mergeRefs(connection=connection,into_ref=delRefArgs.get('mergeInto'),from_ref=delRefArgs.get('cd_ref'))
-        deleteRef(connection,delRefArgs.get('cd_ref'))
+            res.update(mergeRefs(connection=connection,into_ref=delRefArgs.get('mergeInto'),from_ref=delRefArgs.get('cd_ref')))
+        res.update(deleteRef(connection,delRefArgs.get('cd_ref')))
     except (UnauthorizedValueError,DeleteMissingElementDbError) as e:
         return {'error':str(e)}
     else:
         connection.commit()
+        return(res)
 
 def manageRefPut_err_hand(connection, **putRefArgs):
     try:
-        modifyRef(connection, **putRefArgs)
+        res=modifyRef(connection, **putRefArgs)
     except ModifyMissingRefDbError as e:
         return {'error':str(e)}
     else:
         connection.commit()
+        return res
