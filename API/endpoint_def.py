@@ -85,11 +85,11 @@ class CleanDb(Resource):
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		cd_ref: Int
-			Identificator of the bibliographic reference
+			Identifier of the bibliographic reference
 		cd_st: List(Int)
-			List of status identificators (since a taxon can only have only a status in each category, corresponds to the cd_tax)
+			List of status Identifiers (since a taxon can only have only a status in each category, corresponds to the cd_tax)
         """
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -105,7 +105,7 @@ class Performance(Resource):
     def put(self,**perfArgs):
         """
         Description
-        -----------:        
+		-----------
 		Run VACUUM and/or ANALYSE in the postgres database
 
 		Required arguments
@@ -137,18 +137,17 @@ class User(Resource):
         Description
 		-----------
 		Creates a user without editing/admin rights
-		
+
 		Required arguments
 		--------------------
 		username: Str
 			Name of a user
 		password: Str
 			Password of a user for its creation
-		
-		Returns
+        Returns
 		-----------
 		uid: Int
-			Identificator of a user
+			Identifier of a user
         """
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -164,16 +163,16 @@ class User(Resource):
         Description
 		-----------
 		Creates an authenticating token and returns the rights of the user
-
+		
 		Optional arguments
 		------------------
 		create_token: Bool
 			Whether to create a new authentication token.
-		
+
 		Returns
 		-----------
 		uid: Int
-			Identificator of a user
+			Identifier of a user
 		username: Str
 			User name
 		roles: List(Str)
@@ -198,7 +197,7 @@ class User(Resource):
 		Returns
 		-----------
 		uid: Int
-			Identificator of a user
+			Identifier of a user
 		username: Str
 			User name
         """
@@ -214,7 +213,7 @@ class User(Resource):
     @auth.login_required
     def put(self,**newPassword):
         """
-		Description
+        Description
 		-----------
 		Change password for the autenticated user
 
@@ -222,11 +221,11 @@ class User(Resource):
 		--------------------
 		newPassword: Str
 			New password of the user
-
+		
 		Returns
 		-----------
 		uid: Int
-			Identificator of a user
+			Identifier of a user
         """
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -244,7 +243,7 @@ class AdminUsers(Resource):
         Description
 		-----------
 		Delete a user
-
+		
 		Optional arguments
 		------------------
 		uid: Int
@@ -255,7 +254,7 @@ class AdminUsers(Resource):
 		Returns
 		-----------
 		uid: Int
-			Identificator of a user
+			Identifier of a user
 		username: Str
 			User name
         """
@@ -272,7 +271,7 @@ class AdminUsers(Resource):
         Description
 		-----------
 		Returns the list of users and their permissions. Format may be JSON or CSV
-
+		
 		Optional arguments
 		------------------
 		format: Str
@@ -280,9 +279,8 @@ class AdminUsers(Resource):
 
 		Returns
 		-----------
-        List of dictonary, or csv table with:
 		uid: Int
-			Identificator of a user
+			Identifier of a user
 		username: Str
 			User name
 		roles: List(Str)
@@ -303,7 +301,7 @@ class AdminUsers(Resource):
         Description
 		-----------
 		Change permission and/or password of a user.
-
+		
 		Optional arguments
 		------------------
 		uid: Int
@@ -328,7 +326,7 @@ class AdminUsers(Resource):
 		Returns
 		-----------
 		uid: Int
-			Identificator of a user
+			Identifier of a user
 		username: Str
 			User name
         """
@@ -347,7 +345,7 @@ class GetTaxon(Resource):
         Description
 		-----------
 		Returns the information about one taxon.
-
+		
 		Optional arguments
 		------------------
 		cd_tax: Int
@@ -358,11 +356,11 @@ class GetTaxon(Resource):
 			Complete name of a taxon, with authorship
 		canonicalname: Str
 			Name of the taxon without authorship. Formally correspond to canonicalNameWithMarker in GBIF DarwinCore format
-
+		
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		scientificname: Str
 			Name of a taxon, with associated authorship
 		canonicalname: Str
@@ -376,13 +374,13 @@ class GetTaxon(Resource):
 		parentname: Str
 			Name of the direct parent taxon
 		cd_accepted: Int
-			Identificator of the accepted taxon
+			Identifier of the accepted taxon
 		acceptedname: Str
 			Name of the accepted taxon
 		status: Str
 			Taxonomic status of a taxon
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		hasEndemStatus: Bool
 			Whether the taxon has an endemism status in the database
 		hasExotStatus: Bool
@@ -424,7 +422,6 @@ class TestEndem(Resource):
         Description
 		-----------
 		Look for a species. If the found species has an endemism status, returns its status and associated references
-
 		Optional arguments
 		------------------
 		gbifkey: Int
@@ -433,11 +430,14 @@ class TestEndem(Resource):
 			Complete name of a taxon, with authorship
 		canonicalname: Str
 			Name of the taxon without authorship. Formally correspond to canonicalNameWithMarker in GBIF DarwinCore format
+		
 
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
+		cd_tax_acc: Int
+			Identifier of the accepted taxon
 		alreadyInDb: Bool
 			Whether the taxon was already in the database when the endpoint was accessed
 		foundGbif: Bool
@@ -447,15 +447,19 @@ class TestEndem(Resource):
 		acceptedname: Str
 			Name of the accepted taxon
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		syno: Bool
 			Whether a taxon is a synonym
 		insertedTax: List(Int)
 			List of inserted taxa
 		hasEndemStatus: Bool
 			Whether the taxon has an endemism status in the database
-		cd_status: Str
-			Status of the species (IUCN threat status, or description of the endemism level)
+		cd_nivel: Int
+			Endemism level (from 0: unsuficient information to 4: endemic)
+		endemism: Str
+			Endemism level (Spanish)
+		endemism_en: Str
+			Endemism level (English)
 		comments: Str
 			Comments on the taxon status
 		references: List(Str)
@@ -499,7 +503,6 @@ class TestExot(Resource):
         Description
 		-----------
 		Look for a species. If the found species has an exotic status, returns its status and associated references
-
 		Optional arguments
 		------------------
 		gbifkey: Int
@@ -512,7 +515,9 @@ class TestExot(Resource):
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
+		cd_tax_acc: Int
+			Identifier of the accepted taxon
 		alreadyInDb: Bool
 			Whether the taxon was already in the database when the endpoint was accessed
 		foundGbif: Bool
@@ -522,7 +527,7 @@ class TestExot(Resource):
 		acceptedname: Str
 			Name of the accepted taxon
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		syno: Bool
 			Whether a taxon is a synonym
 		insertedTax: List(Int)
@@ -575,7 +580,7 @@ class TestThreat(Resource):
         Description
 		-----------
 		Look for a species. If the found species has an threat status, returns its status and associated references
-		
+
 		Optional arguments
 		------------------
 		gbifkey: Int
@@ -588,7 +593,7 @@ class TestThreat(Resource):
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		alreadyInDb: Bool
 			Whether the taxon was already in the database when the endpoint was accessed
 		foundGbif: Bool
@@ -598,7 +603,7 @@ class TestThreat(Resource):
 		acceptedname: Str
 			Name of the accepted taxon
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		syno: Bool
 			Whether a taxon is a synonym
 		insertedTax: List(Int)
@@ -606,7 +611,7 @@ class TestThreat(Resource):
 		hasThreatStatus: Bool
 			Whether the taxon has a threat status in the database
 		cd_status: Str
-			Status of the species (IUCN threat status, or description of the endemism level)
+			Status of the species (IUCN threat statusl)
 		comments: Str
 			Comments on the taxon status
 		references: List(Str)
@@ -660,7 +665,7 @@ class ListExot(Resource):
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		scientificname: Str
 			Name of a taxon, with associated authorship
 		parentname: Str
@@ -668,7 +673,7 @@ class ListExot(Resource):
 		tax_rank: Str
 			Taxonomic level (from FORM to DOMAIN)
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		synonyms: List(Str)
 			List of synonyms associated with a taxon
 		is_alien: Bool
@@ -700,18 +705,18 @@ class ListEndem(Resource):
         Description
 		-----------
 		Returns of endemic taxa and associated reference. Without argument, returns the complete list. With the “childrenOf” argument, returns only the taxa from a taxonomic clade.  Export format may be JSON or CSV
-
+		
 		Optional arguments
 		------------------
 		childrenOf: Str
 			canonicalname or scientificname of the parent taxon for which we want to get the list of children taxa (and their statuses)
 		format: Str
 			JSON or CSV format in GET methods
-
+		
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		scientificname: Str
 			Name of a taxon, with associated authorship
 		parentname: Str
@@ -719,11 +724,13 @@ class ListEndem(Resource):
 		tax_rank: Str
 			Taxonomic level (from FORM to DOMAIN)
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		synonyms: List(Str)
 			List of synonyms associated with a taxon
-		cd_status: Str
-			Status of the species (IUCN threat status, or description of the endemism level)
+		endemism: Str
+			Endemism level (Spanish)
+		endemism_en: Str
+			Endemism level (English)
 		comments: Str
 			Comments on the taxon status
 		references: List(Str)
@@ -750,7 +757,7 @@ class ListThreat(Resource):
         Description
 		-----------
 		Returns of threatened taxa and associated reference. Without argument, returns the complete list. With the “childrenOf” argument, returns only the taxa from a taxonomic clade.  Export format may be JSON or CSV
-		
+
 		Optional arguments
 		------------------
 		childrenOf: Str
@@ -761,7 +768,7 @@ class ListThreat(Resource):
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		scientificname: Str
 			Name of a taxon, with associated authorship
 		parentname: Str
@@ -769,11 +776,11 @@ class ListThreat(Resource):
 		tax_rank: Str
 			Taxonomic level (from FORM to DOMAIN)
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		synonyms: List(Str)
 			List of synonyms associated with a taxon
 		cd_status: Str
-			Status of the species (IUCN threat status, or description of the endemism level)
+			Status of the species (IUCN threat statusl)
 		comments: Str
 			Comments on the taxon status
 		references: List(Str)
@@ -806,11 +813,11 @@ class ListTax(Resource):
 			canonicalname or scientificname of the parent taxon for which we want to get the list of children taxa (and their statuses)
 		format: Str
 			JSON or CSV format in GET methods
-
+		
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		scientificname: Str
 			Name of a taxon, with associated authorship
 		canonicalname: Str
@@ -824,13 +831,13 @@ class ListTax(Resource):
 		parentname: Str
 			Name of the direct parent taxon
 		cd_accepted: Int
-			Identificator of the accepted taxon
+			Identifier of the accepted taxon
 		acceptedname: Str
 			Name of the accepted taxon
 		status: Str
 			Taxonomic status of a taxon
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		hasEndemStatus: Bool
 			Whether the taxon has an endemism status in the database
 		hasExotStatus: Bool
@@ -856,7 +863,7 @@ class ListReferences(Resource):
         Description
 		-----------
 		Returns a list of bibliographic references from the database, with the number of taxa with statuses (endemism, alien and threatened). Format may be JSON or CSV
-		
+
 		Optional arguments
 		------------------
 		onlyExot: Bool
@@ -865,20 +872,22 @@ class ListReferences(Resource):
 			Whether to returns only the endemism-related references
 		onlyThreat: Bool
 			Whether to returns only the threat-related references
+		format: Str
+			JSON or CSV format in GET methods
 		
 		Returns
 		-----------
 		cd_ref: Int
-			Identificator of the bibliographic reference
+			Identifier of the bibliographic reference
 		ref_citation: Str
 			Bibliographic reference descriptor
 		link: Str
 			Internet link for resources (usually datasets or pdf) associated with a bibliographic reference
-		nbExot: Int
+		nb_exot: Int
 			Number of exotic taxa associated with a bibliographic reference
-		nbEndem: Int
+		nb_endem: Int
 			Number of endemic taxa associated with a bibliographic reference
-		nbThreat: Int
+		nb_threat: Int
 			Number of threatened taxa associated with a bibliographic reference
         """
         try:
@@ -899,7 +908,7 @@ class ManageEndem(Resource):
         Description
 		-----------
 		Add references to an endemic status, or insert references and status if the taxon has no status yet. If the taxon is not yet in the database, insert the taxon as well (by the same process as in the /manageTaxo endpoint). The optional parameter “priority” control the behavior of the function when the endemic status already exists in the database: if “high”, replace the preexisting status, if low, only add new references. If not provided, or null, and the status from the database is different from the provided status, returns an error and no modification is applied in the database.
-
+		
 		Required arguments
 		--------------------
 		endemstatus: Str
@@ -931,19 +940,25 @@ class ManageEndem(Resource):
 			Accepted taxon canonicalname (when the sent taxon is a synonym)
 		synoscientificname: Str
 			Accepted taxon scientificname (when the sent taxon is a synonym)
+		rank: Str
+			Taxonomic rank (level) of the provided taxon
+		min_gbif_conf: Int
+			Minimum value for the confidence in the GBIF matching: default value is 90, maximum is 100. Higher value means the taxon found in GBIF needs to have a closer spelling to the provided one in order to be accepted
+		no_gbif: Bool
+			Whether the provided taxon should be matched through the GBIF API. Note that even though ‘no_gbif’ is set to True, the parents taxa will be searched through the GBIF API if not found in the database
 		link: List(Str)
 			Link, or link list for the resources associated with a bibliographic reference which justify the status of a taxon (if provided, it needs to have the same length as ref_citation)
 		comments: Str
 			Comments and supplementary information about a taxon status
 		replace_comment: Bool
-			Whether to delete the preexisting comment in a taxon status, before inserting the provided comments
+			Whether to delete the preexisting comment in a taxon status, before inserting the provided comments, when the status already exists.
 		priority: Str
 			“high” if the provided status is prioritary on (must replace) the preexisting status, “low” if the preexisting status should not be modified (in this case only the new references are added in the database)
 
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		alreadyInDb: Bool
 			Whether the taxon was already in the database when the endpoint was accessed
 		foundGbif: Bool
@@ -953,15 +968,17 @@ class ManageEndem(Resource):
 		acceptedname: Str
 			Name of the accepted taxon
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		syno: Bool
 			Whether a taxon is a synonym
 		insertedTax: List(Int)
 			List of inserted taxa
-		cd_status: Str
-			Status of the species (IUCN threat status, or description of the endemism level)
 		cd_refs: List(Int)
-			List of identificators of bibliographic references
+			List of Identifiers of bibliographic references
+		status_replaced: Bool
+			Whether the status has been replaced in the application of the POST method
+		status_created: Bool
+			Whether the status has been created in the POST method
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -980,11 +997,13 @@ class ManageEndem(Resource):
         Description
 		-----------
 		Delete a link between a taxon and its endemic status, or the status of a taxon.
+		
 
 		Required arguments
 		--------------------
 		cd_tax: Int
 			Identificator of a taxon in the database
+		
 
 		Optional arguments
 		------------------
@@ -992,13 +1011,14 @@ class ManageEndem(Resource):
 			Identificator of a bibliographic reference
 		delete_status: Bool
 			Whether to suppress the whole status of a taxon in the delete methods (if negative or null, only the association between a reference and a status is deleted)
+		
 
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		cd_refs: List(Int)
-			List of identificators of bibliographic references
+			List of Identifiers of bibliographic references
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -1017,7 +1037,7 @@ class ManageEndem(Resource):
         Description
 		-----------
 		Modify the parameters of an endemic status of a species, and insert the references associated with the new endemic status
-
+		
 		Required arguments
 		--------------------
 		cd_tax: Int
@@ -1034,14 +1054,14 @@ class ManageEndem(Resource):
 		comments: Str
 			Comments and supplementary information about a taxon status
 		replace_comment: Bool
-			Whether to delete the preexisting comment in a taxon status, before inserting the provided comments
-
+			Whether to delete the preexisting comment in a taxon status, before inserting the provided comments, when the status already exists.
+		
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		cd_refs: List(Int)
-			List of identificators of bibliographic references
+			List of Identifiers of bibliographic references
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -1058,6 +1078,82 @@ class ManageExot(Resource):
     @use_kwargs(input_args.ManageExotPostArgs)
     def post(self, **inputExot):
         """
+        Description
+		-----------
+		Add references to an exotic (alien/invasive) status, or insert references and status if the taxon has no status yet. If the taxon is not yet in the database, insert the taxon as well (by the same process as in the /manageTaxo endpoint). The optional parameter “priority” control the behavior of the function when the exotic status already exists in the database: if “high”, replace the preexisting status, if low, only add new references. If not provided, or null, and the status from the database is different from the provided status, returns an error and no modification is applied in the database.
+
+		Required arguments
+		--------------------
+		is_alien: Bool
+			Part of the exotic status of a taxon: is it considered alien in Colombia?
+		is_invasive: Bool
+			Part of the exotic status of a taxon: is it considered invasive in Colombia?
+		ref_citation: List(Str)
+			Bibliographic references justifying the status of a taxon
+
+		Optional arguments
+		------------------
+		gbifkey: Int
+			Identificator of a taxon in the GBIF Backbone database (=specieskey, key, acceptedkey etc.)
+		scientificname: Str
+			Complete name of a taxon, with authorship
+		canonicalname: Str
+			Name of the taxon without authorship. Formally correspond to canonicalNameWithMarker in GBIF DarwinCore format
+		authorship: Str
+			Authorship of a taxon (usually corresponds to the difference between scientificname and canonicalname)
+		syno: Bool
+			Whether the taxon is a synonym
+		parentgbifkey: Int
+			gbifkey of the parent taxon
+		parentcanonicalname: Str
+			canonicalname of the parent taxon
+		parentscientificname: Str
+			scientificname of the parent taxon
+		synogbifkey: Int
+			Accepted taxon gbifkey (when the sent taxon is a synonym)
+		synocanonicalname: Str
+			Accepted taxon canonicalname (when the sent taxon is a synonym)
+		synoscientificname: Str
+			Accepted taxon scientificname (when the sent taxon is a synonym)
+		rank: Str
+			Taxonomic rank (level) of the provided taxon
+		min_gbif_conf: Int
+			Minimum value for the confidence in the GBIF matching: default value is 90, maximum is 100. Higher value means the taxon found in GBIF needs to have a closer spelling to the provided one in order to be accepted
+		no_gbif: Bool
+			Whether the provided taxon should be matched through the GBIF API. Note that even though ‘no_gbif’ is set to True, the parents taxa will be searched through the GBIF API if not found in the database
+		link: List(Str)
+			Link, or link list for the resources associated with a bibliographic reference which justify the status of a taxon (if provided, it needs to have the same length as ref_citation)
+		comments: Str
+			Comments and supplementary information about a taxon status
+		replace_comment: Bool
+			Whether to delete the preexisting comment in a taxon status, before inserting the provided comments, when the status already exists.
+		priority: Str
+			“high” if the provided status is prioritary on (must replace) the preexisting status, “low” if the preexisting status should not be modified (in this case only the new references are added in the database)
+
+		Returns
+		-----------
+		cd_tax: Int
+			Identifier of a taxon in the API database
+		alreadyInDb: Bool
+			Whether the taxon was already in the database when the endpoint was accessed
+		foundGbif: Bool
+			Whether the taxon was found in GBIF
+		matchedname: Str
+			Name of the taxon matched with the provided one, in the API database, or from the GBIF API
+		acceptedname: Str
+			Name of the accepted taxon
+		gbifkey: Int
+			Identifier of a taxon in the GBIF backbone
+		syno: Bool
+			Whether a taxon is a synonym
+		insertedTax: List(Int)
+			List of inserted taxa
+		cd_refs: List(Int)
+			List of Identifiers of bibliographic references
+		status_replaced: Bool
+			Whether the status has been replaced in the application of the POST method
+		status_created: Bool
+			Whether the status has been created in the POST method
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -1073,6 +1169,28 @@ class ManageExot(Resource):
     @use_kwargs(input_args.ManageExotDeleteArgs)
     def delete(self, **inputExot):
         """
+        Description
+		-----------
+		Delete a link between a taxon and its exotic status, or the status of a taxon.
+
+		Required arguments
+		--------------------
+		cd_tax: Int
+			Identificator of a taxon in the database
+
+		Optional arguments
+		------------------
+		cd_ref: Int
+			Identificator of a bibliographic reference
+		delete_status: Bool
+			Whether to suppress the whole status of a taxon in the delete methods (if negative or null, only the association between a reference and a status is deleted)
+
+		Returns
+		-----------
+		cd_tax: Int
+			Identifier of a taxon in the API database
+		cd_refs: List(Int)
+			List of Identifiers of bibliographic references
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -1088,6 +1206,36 @@ class ManageExot(Resource):
     @use_kwargs(input_args.ManageExotPutArgs)
     def put(self, **inputExot):
         """
+        Description
+		-----------
+		Modify the parameters of an exotic status of a species, and insert the references associated with the new exotic status
+
+		Required arguments
+		--------------------
+		cd_tax: Int
+			Identificator of a taxon in the database
+		is_alien: Bool
+			Part of the exotic status of a taxon: is it considered alien in Colombia?
+		is_invasive: Bool
+			Part of the exotic status of a taxon: is it considered invasive in Colombia?
+		ref_citation: List(Str)
+			Bibliographic references justifying the status of a taxon
+
+		Optional arguments
+		------------------
+		link: List(Str)
+			Link, or link list for the resources associated with a bibliographic reference which justify the status of a taxon (if provided, it needs to have the same length as ref_citation)
+		comments: Str
+			Comments and supplementary information about a taxon status
+		replace_comment: Bool
+			Whether to delete the preexisting comment in a taxon status, before inserting the provided comments, when the status already exists.
+
+		Returns
+		-----------
+		cd_tax: Int
+			Identifier of a taxon in the API database
+		cd_refs: List(Int)
+			List of Identifiers of bibliographic references
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -1106,15 +1254,13 @@ class ManageThreat(Resource):
         """
         Description
 		-----------
-		Add references to an exotic (alien/invasive) status, or insert references and status if the taxon has no status yet. If the taxon is not yet in the database, insert the taxon as well (by the same process as in the /manageTaxo endpoint). The optional parameter “priority” control the behavior of the function when the exotic status already exists in the database: if “high”, replace the preexisting status, if low, only add new references. If not provided, or null, and the status from the database is different from the provided status, returns an error and no modification is applied in the database.
+		Add references to a threat status, or insert references and status if the taxon has no status yet. If the taxon is not yet in the database, insert the taxon as well (by the same process as in the /manageTaxo endpoint). The optional parameter “priority” control the behavior of the function when the threat status already exists in the database: if “high”, replace the preexisting status, if low, only add new references. If not provided, or null, and the status from the database is different from the provided status, returns an error and no modification is applied in the database.
 		
 
 		Required arguments
 		--------------------
-		is_alien: Bool
-			Part of the exotic status of a taxon: is it considered alien in Colombia?
-		is_invasive: Bool
-			Part of the exotic status of a taxon: is it considered invasive in Colombia?
+		threatstatus: Str
+			IUCN threat status
 		ref_citation: List(Str)
 			Bibliographic references justifying the status of a taxon
 		
@@ -1143,12 +1289,18 @@ class ManageThreat(Resource):
 			Accepted taxon canonicalname (when the sent taxon is a synonym)
 		synoscientificname: Str
 			Accepted taxon scientificname (when the sent taxon is a synonym)
+		rank: Str
+			Taxonomic rank (level) of the provided taxon
+		min_gbif_conf: Int
+			Minimum value for the confidence in the GBIF matching: default value is 90, maximum is 100. Higher value means the taxon found in GBIF needs to have a closer spelling to the provided one in order to be accepted
+		no_gbif: Bool
+			Whether the provided taxon should be matched through the GBIF API. Note that even though ‘no_gbif’ is set to True, the parents taxa will be searched through the GBIF API if not found in the database
 		link: List(Str)
 			Link, or link list for the resources associated with a bibliographic reference which justify the status of a taxon (if provided, it needs to have the same length as ref_citation)
 		comments: Str
 			Comments and supplementary information about a taxon status
 		replace_comment: Bool
-			Whether to delete the preexisting comment in a taxon status, before inserting the provided comments
+			Whether to delete the preexisting comment in a taxon status, before inserting the provided comments, when the status already exists.
 		priority: Str
 			“high” if the provided status is prioritary on (must replace) the preexisting status, “low” if the preexisting status should not be modified (in this case only the new references are added in the database)
 		
@@ -1156,7 +1308,7 @@ class ManageThreat(Resource):
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		alreadyInDb: Bool
 			Whether the taxon was already in the database when the endpoint was accessed
 		foundGbif: Bool
@@ -1166,17 +1318,17 @@ class ManageThreat(Resource):
 		acceptedname: Str
 			Name of the accepted taxon
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		syno: Bool
 			Whether a taxon is a synonym
 		insertedTax: List(Int)
 			List of inserted taxa
-		is_alien: Bool
-			Whether a taxon is alien for Colombia (part of the exotic status)
-		is_invasive: Bool
-			Whether a taxo is invasive in Colombia (part of the exotic status)
 		cd_refs: List(Int)
-			List of identificators of bibliographic references
+			List of Identifiers of bibliographic references
+		status_replaced: Bool
+			Whether the status has been replaced in the application of the POST method
+		status_created: Bool
+			Whether the status has been created in the POST method
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -1191,6 +1343,30 @@ class ManageThreat(Resource):
     @auth.login_required(role='edit')
     @use_kwargs(input_args.ManageThreatDeleteArgs)
     def delete(self, **inputThreat):
+        """
+        Description
+		-----------
+		Delete a link between a taxon and its threat status, or the status of a taxon.
+
+		Required arguments
+		--------------------
+		cd_tax: Int
+			Identificator of a taxon in the database
+
+		Optional arguments
+		------------------
+		cd_ref: Int
+			Identificator of a bibliographic reference
+		delete_status: Bool
+			Whether to suppress the whole status of a taxon in the delete methods (if negative or null, only the association between a reference and a status is deleted)
+
+		Returns
+		-----------
+		cd_tax: Int
+			Identifier of a taxon in the API database
+		cd_refs: List(Int)
+			List of Identifiers of bibliographic references
+        """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
             res = manageThreatDel_err_hand(connection=conn, **inputThreat)
@@ -1204,6 +1380,39 @@ class ManageThreat(Resource):
     @auth.login_required(role='edit')
     @use_kwargs(input_args.ManageThreatPutArgs)
     def put(self, **inputThreat):
+        """
+        Description
+		-----------
+		Modify the parameters of the threat status of a species, and insert the references associated with the new threat status
+		
+
+		Required arguments
+		--------------------
+		cd_tax: Int
+			Identificator of a taxon in the database
+		threatstatus: Str
+			IUCN threat status
+		ref_citation: List(Str)
+			Bibliographic references justifying the status of a taxon
+		
+
+		Optional arguments
+		------------------
+		link: List(Str)
+			Link, or link list for the resources associated with a bibliographic reference which justify the status of a taxon (if provided, it needs to have the same length as ref_citation)
+		comments: Str
+			Comments and supplementary information about a taxon status
+		replace_comment: Bool
+			Whether to delete the preexisting comment in a taxon status, before inserting the provided comments, when the status already exists.
+		
+
+		Returns
+		-----------
+		cd_tax: Int
+			Identifier of a taxon in the API database
+		cd_refs: List(Int)
+			List of Identifiers of bibliographic references
+        """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
             res = manageThreatPut_err_hand(connection=conn, **inputThreat)
@@ -1247,12 +1456,19 @@ class ManageTax(Resource):
 			Accepted taxon canonicalname (when the sent taxon is a synonym)
 		synoscientificname: Str
 			Accepted taxon scientificname (when the sent taxon is a synonym)
-		
+		rank: Str
+			Taxonomic rank (level) of the provided taxon
+		min_gbif_conf: Int
+			Minimum value for the confidence in the GBIF matching: default value is 90, maximum is 100. Higher value means the taxon found in GBIF needs to have a closer spelling to the provided one in order to be accepted
+		no_gbif: Bool
+			Whether the provided taxon should be matched through the GBIF API. Note that even though ‘no_gbif’ is set to True, the parents taxa will be searched through the GBIF API if not found in the database
 
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
+		cd_tax_acc: Int
+			Identifier of the accepted taxon
 		alreadyInDb: Bool
 			Whether the taxon was already in the database when the endpoint was accessed
 		foundGbif: Bool
@@ -1262,7 +1478,7 @@ class ManageTax(Resource):
 		acceptedname: Str
 			Name of the accepted taxon
 		gbifkey: Int
-			Identificator of a taxon in the GBIF backbone
+			Identifier of a taxon in the GBIF backbone
 		syno: Bool
 			Whether a taxon is a synonym
 		insertedTax: List(Int)
@@ -1285,12 +1501,12 @@ class ManageTax(Resource):
         Description
 		-----------
 		Delete a taxon and its statuses in the database. Note that if the taxon has synonyms and/or children taxa, it might cause problems in the app. Use carefully.
-		
+
 		Required arguments
 		--------------------
 		cd_tax: Int
 			Identificator of a taxon in the database
-
+		
 		Optional arguments
 		------------------
 		gbifkey: Int
@@ -1303,11 +1519,11 @@ class ManageTax(Resource):
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
 		cd_children: List(Int)
-			List of identificators of children taxa
+			List of Identifiers of children taxa
 		cd_synos: List(Int)
-			List of synonym identificators
+			List of synonym Identifiers
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -1366,12 +1582,20 @@ class ManageTax(Resource):
 			Link, or link list for the resources associated with a bibliographic reference which justify the status of a taxon (if provided, it needs to have the same length as ref_citation)
 		cd_ref: Int
 			Identificator of a bibliographic reference
+		rank: Str
+			Taxonomic rank (level) of the provided taxon
+		no_gbif: Bool
+			Whether the provided taxon should be matched through the GBIF API. Note that even though ‘no_gbif’ is set to True, the parents taxa will be searched through the GBIF API if not found in the database
+		min_gbif_conf: Int
+			Minimum value for the confidence in the GBIF matching: default value is 90, maximum is 100. Higher value means the taxon found in GBIF needs to have a closer spelling to the provided one in order to be accepted
 		
 
 		Returns
 		-----------
 		cd_tax: Int
-			Identificator of a taxon in the API database
+			Identifier of a taxon in the API database
+		insertedTax: List(Int)
+			List of inserted taxa
         """
         try:
             conn = psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -1387,6 +1611,28 @@ class ManageRef(Resource):
     @auth.login_required(role='edit')
     @use_kwargs(input_args.ManageRefDeleteArgs)
     def delete(self, **delRefArgs):
+        """
+        Description
+		-----------
+		Delete a reference, or join them. In the mergeInto parameter is provided, all references to cd_ref are replaced into references to mergeInto. Otherwise, references to cd_ref are deleted
+		
+		Required arguments
+		--------------------
+		cd_ref: Int
+			Identificator of a bibliographic reference
+		
+		Optional arguments
+		------------------
+		mergeInto: Int
+			Identificator of the bibliographic reference which will be kept in the database in the case of merging references
+
+		Returns
+		-----------
+		cd_ref_modif: Int
+			Identifier of the modified bibliographic reference
+		cd_ref_del: Int
+			Identifier of the deleted bibliographic reference
+        """
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
             res= manageRefDel_err_hand(conn,**delRefArgs)
@@ -1400,6 +1646,30 @@ class ManageRef(Resource):
     @auth.login_required(role='edit')
     @use_kwargs(input_args.ManageRefPutArgs)
     def put(self,**putRefArgs):
+        """
+        Description
+		-----------
+		Modify the references
+
+		Required arguments
+		--------------------
+		cd_ref: Int
+			Identificator of a bibliographic reference
+
+		Optional arguments
+		------------------
+		reference: Str
+			Bibliographic references for the taxonomic status of a taxon
+		link: List(Str)
+			Link, or link list for the resources associated with a bibliographic reference which justify the status of a taxon (if provided, it needs to have the same length as ref_citation)
+
+		Returns
+		-----------
+		cd_ref_modif: Int
+			Identifier of the modified bibliographic reference
+		cd_ref_del: Int
+			Identifier of the deleted bibliographic reference
+        """
         try:
             conn=psycopg2.connect(DATABASE_URL, sslmode='require')
             res=manageRefPut_err_hand(conn,**putRefArgs)
