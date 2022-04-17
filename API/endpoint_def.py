@@ -181,16 +181,12 @@ class User(Resource):
 		token: Str
 			Authentication token for a user
         """
-        try:
-            conn=psycopg2.connect(DATABASE_URL, sslmode='require')
-            user=g.get('user')
-            if userArgs.get('create_token'):
-                token = generate_auth_token(conn,g.user.get('id')).decode('ascii')
-                user['token']=token
-            user['uid'] = user.pop('id')
-            return user
-        finally:
-            conn.close()
+        user=g.get('user')
+        if userArgs.get('create_token'):
+            token = generate_auth_token(g.user.get('id')).decode('ascii')
+            user['token']=token
+        user['uid'] = user.pop('id')
+        return user
     
     @auth.login_required
     def delete(self):
