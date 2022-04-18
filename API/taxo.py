@@ -211,7 +211,7 @@ def test_taxInDb(connection,**kwargs):
     
     Parameters
     ----------
-    connection: postgres connection
+    connection: psycopg2 connection
         connection to the postgres database
     kwargs: dict
         Dictionary, must contain at least one of the following parameters to work:
@@ -234,21 +234,14 @@ def test_taxInDb(connection,**kwargs):
         
     Error handling
     --------------
-    Exception:
-        "Name of the taxon does not correspond to gbifkey"
+    UncompatibilityGbifKeyCanonicalname: Exception
         If both canonical name and gbifkey are given, a partial match is performed between the "name" of the taxon corresponding to the gbifkey and the name given as "canonicalname" in kwargs. If we do not find a match between these two names, the exception is raised
-    Exception:
-        "gbifkey more than once in the database, should not be possible"
-        gbifkey corresponds to more than one taxon in the database. In the current data model, gbifkey has an UNIQUE constraint, so we should not ever find this error, but it might be safer to keep it in case we have problems of concurrent INSERT in the database, or if we change the database motor, or data model in the future
-    Exception: 
-        "Name (with author) in the database more than once, should not be possible!"
-        scientificname correspond to more than one taxon in the database (field name_auth in the taxon table). In the current data model, name_auth has an UNIQUE constraint, so we should not ever find this error, but it might be safer to keep it in case we have problems of concurrent INSERT in the database, or if we change the database motor, or data model in the future
-    Exception:
-        "Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to"
-        Since there is no UNIQUE constraint on the "name" field of the taxon table in the database, it is potentially possible that 2 taxa from the database share the same canonical name (with 2 different authorships though). In that case it is impossible to know which of the taxa is referred to, and the function stop, raising this error
-    Exception:
-        "Either 'gbifkey', or 'scientificname', or 'canonicalname' should be included in the parameters in order to be able to identify the taxon"
-        If none of the parameters necessary to identify the taxon are given as parameters in the kwargs dictionary the function stops and raises this exception
+    DbIntegrityError: Exception
+        Case 1: gbifkey corresponds to more than one taxon in the database. In the current data model, gbifkey has an UNIQUE constraint, so we should not ever find this error, but it might be safer to keep it in case we have problems of concurrent INSERT in the database, or if we change the database motor, or data model in the future
+        Case 2: scientificname correspond to more than one taxon in the database (field name_auth in the taxon table). In the current data model, name_auth has an UNIQUE constraint, so we should not ever find this error, but it might be safer to keep it in case we have problems of concurrent INSERT in the database, or if we change the database motor, or data model in the future
+    MissingArgError: Exception
+        Case 1:Since there is no UNIQUE constraint on the "name" field of the taxon table in the database, it is potentially possible that 2 taxa from the database share the same canonical name (with 2 different authorships though). In that case it is impossible to know which of the taxa is referred to, and the function stop, raising this error
+        Case 2: If none of the parameters necessary to identify the taxon are given as parameters in the kwargs dictionary the function stops and raises this exception
     """
     cur = connection.cursor()
     alreadyInDb = False
@@ -267,7 +260,6 @@ def test_taxInDb(connection,**kwargs):
                 diffTaxName = fuzz.ratio(nameTaxDb,kwargs.get('canonicalname'))
                 if (diffTaxName < 0.75):
                     raise UncompatibilityGbifKeyCanonicalname(gbifkey = kwargs.get('gbifkey'), canonicalname = kwargs.get('canonicalname'), name_gbifkey = nameTaxDb)
-                    #raise Exception("Name of the taxon does not correspond to gbifkey")
             alreadyInDb = True
             SQL = "SELECT cd_tax FROM taxon WHERE gbifkey = %s"
             cur.execute(SQL,[kwargs.get('gbifkey')])
@@ -276,7 +268,6 @@ def test_taxInDb(connection,**kwargs):
             pass
         else :
             raise DbIntegrityError(value=kwargs.get('gbifkey'), field="'gbifkey'", message='gbifkey present more than once in the database')
-            #raise Exception("gbifkey more than once in the database, should not be possible!")
     elif (kwargs.get('scientificname') is not None):
         SQL = "SELECT count(*) AS nb FROM taxon WHERE name_auth = %s"
         cur.execute(SQL,[kwargs.get('scientificname')])
@@ -291,7 +282,6 @@ def test_taxInDb(connection,**kwargs):
             infoTax = get_gbif_tax_from_sci_name(kwargs.get('scientificname'))
         else:
             raise dbIntegrityError(value=kwargs.get('scientificname'), field="'name_auth'", message='name_auth (scientificname) present more than once in the database')
-            #raise Exception("Name (with author) in the database more than once, should not be possible!")
     elif (kwargs.get('canonicalname') is not None):
         SQL = "SELECT count(*) AS nb FROM taxon WHERE name =%s"
         cur.execute(SQL,[kwargs.get('canonicalname')])
@@ -305,7 +295,6 @@ def test_taxInDb(connection,**kwargs):
         elif (gbifNameInDb_nb == 0):
             infoTax = get_gbif_tax_from_name(kwargs.get('canonicalname'))
         else:
-            """Exception("Name (without author) exists more than once in the database, please provide scientificname or gbifkey instead, in order to be able to identify which taxon you are referring to")"""
             raise MissingArgError(missingArg="'scientificname' or 'gbifkey'", message="The name without authorship (canonicalname) corresponds to various taxa in the database, please provide scientific name or gbif taxon key")
     else:
         raise MissingArgError(missingArg="'scientificname', 'canonicalname' or 'gbifkey'", message= "You did not provide GBIF taxon key nor name with nor without authorship")
@@ -319,6 +308,8 @@ def get_infoTax(min_conf=90,**kwargs):
     
     Parameters
     ----------
+    min_conf: Int
+        Value for the minimum acceptable confidence in the GBIF matching procedure
     kwargs: dict
         Dictionary consisting on the input given by the users about the taxon, together with the results of the function test_taxInDb. The important parameters in this dictionary is:
         gbifMatchMode [mandatory]: str
@@ -338,7 +329,7 @@ def get_infoTax(min_conf=90,**kwargs):
     
     Error handling
     --------------
-    Exception: "No acceptable gbifMatchMode were provided"
+    UnauthorizedValueError: Exception
         If gbifMatchMode is not one of 'gbifkey', 'canonicalname' or 'scientificname' the function cannot know how to query the GBIF API, therefore it sends this exception and stops
     """
     foundGbif = False
@@ -404,43 +395,34 @@ def format_inputTax(connection, acceptedName, acceptedId, **inputTax):
     acceptedId: int 
         In case of synonyms: cd_tax of the accepted taxon, otherwise None
     inputTax: dict
-        Dictionary containing all the information available about the taxon (canonicalname, scientificname, authorship, parentscientificname, parentgbifkey, parentcanonicalname, rank, syno [mandatory]
+        Dictionary containing all the information available about the taxon (canonicalname, scientificname, authorship, parentscientificname, parentgbifkey, parentcanonicalname, rank, syno 
     
     Returns
     --------
-    2 dictionaries:
-        dict1: dict
-        dictionary concerning the taxon with the following parameters:
-            name: str
-                canonical name of the taxon (corresponding to the GBIF canonicalNameWithMarker
-            name_auth : str
-                scientific name of the taxon, with authorship if available
-            auth : str
-                authorship associated with the name of the taxon
-            tax_rank_name: str
-                name of the rank in uppercase
-            status : str
-                taxonomic status (here either SYNONYM or DOUBTFUL, because it is not found in GBIF)
-            gbifkey : str
-                None because the taxa are not found in GBIF
-            source : int
-                bibliographic reference of the taxon, not really implemented yet so: None
-        parentTax : dict
-        dictionary with the following parameters:
-            canonicalname: str
-                canonical name of the parent taxon
-            scientificname: str
-                scientific name of the parent taxon
-            gbifkey: int 
-                Gbif key of the parent taxon
+    dictionary containing the following elements:
+        name: Str
+            canonical name of the taxon
+        name_auth: Str 
+            scientific name of the taxon (with authorship)
+        auth: Str
+            Authorship associated with the taxon name
+        tax_rank_name: str
+            name of the taxonomic rank, or level
+        status: Str
+            status of the taxon (ACCEPTED, SYNONYM or DOUBTFUL)
+        gbifkey: Int
+            Identifier of the taxon in the gbif backbone
+        source: Int
+
     Error handling
     --------------
-    Exception: "Name not found in GBIF and information insufficient to integrate in the database"
-        If there are some mandatory information which are not found in the input from the user, potentially causing disfunctioning of the database, the function raises this exception and stop
-    Exception: "No way to determine the taxon rank"
-        If the rank is not provided and impossible to determine through GBIF API name analysis, the function raises this exception and stops
-    Exception: "No sure way to determine the superior taxon"
-        If there is no sufficient information about the parent taxon and it cannot be retrieved from the analysis of the name of the taxon, the function raises this exception and stops
+    MissingArgError: Exception
+        case 1:
+            If there are some mandatory information which are not found in the input from the user, potentially causing disfunctioning of the database, the function raises this exception and stop
+        case 2:
+            If the rank is not provided and impossible to determine through GBIF API name analysis, the function raises this exception and stops
+        case 3:
+            If there is no sufficient information about the parent taxon and it cannot be retrieved from the analysis of the name of the taxon, the function raises this exception and stops
     """
     hasSciName = inputTax.get('scientificname') is not None
     hasCanoName = inputTax.get('canonicalname') is not None
@@ -524,29 +506,20 @@ def format_gbif_tax(connection,**gbif_tax):
                 status of the taxon in the gbif taxon (ACCEPTED, SYNONYM or DOUBTFUL
     Returns
     ------------
-    2 dictionaries:
-        dict1: dict
-        dictionary concerning the taxon with the following parameters:
-            name: str
-                canonical name of the taxon (corresponding to the GBIF canonicalNameWithMarker)
-            name_auth : str
-                scientific name of the taxon, with authorship if available
-            auth : str
-                authorship associated with the name of the taxon
-            tax_rank_name: str
-                name of the rank in uppercase
-            status : str
-                taxonomic status (ACCEPTED, SYNONYM or DOUBTFUL)
-            gbifkey : str
-                None because the taxa are not found in GBIF
-            source : int
-                bibliographic reference of the taxon, not really implemented yet so: None
-        parentTax : dict
-        dictionary with the following parameters:
-            canonicalname: str
-                canonical name of the parent taxon
-            gbifkey: int 
-                Gbif key of the parent taxon
+    dictionary containing the following elements:
+        name: Str
+            canonical name of the taxon
+        name_auth: Str 
+            scientific name of the taxon (with authorship)
+        auth: Str
+            Authorship associated with the taxon name
+        tax_rank_name: str
+            name of the taxonomic rank, or level
+        status: Str
+            status of the taxon (ACCEPTED, SYNONYM or DOUBTFUL)
+        gbifkey: Int
+            Identifier of the taxon in the gbif backbone
+        source: Int
     """
     rank, level_rank = get_rank(connection, gbif_tax.get('rank'))
     if(level_rank < 5):
@@ -648,7 +621,7 @@ def manageInputTax(connection, insert, **inputTax):
         connection to the postgres database
     insert: Bool
         Whether the insertion of taxa which are not in the database should be done or not
-    inputTax: dict
+    inputTax: dict (see definition of the arguments in the endpoint definition)
         dictionary containing all the information provided by the user about the taxon
     
     Returns
@@ -827,6 +800,20 @@ def manageInputTax(connection, insert, **inputTax):
     return res
 
 def childrenList(cursor,cd_tax):
+    """
+    Retrieve all the children of a taxon in the database
+
+    Parameters:
+    ----------
+    cursor: Psycopg2 cursor
+        cursor for the database connection
+    cd_tax: Int 
+        idenfier of the taxon for which we search the children taxa
+    Returns:
+    -------
+    all_children: List(Int)
+        list of identifiers of the children taxa
+    """
     foundMore = True
     all_children=[cd_tax]
     new_children = [cd_tax]
@@ -842,6 +829,20 @@ def childrenList(cursor,cd_tax):
     return all_children
 
 def parentList(cursor, cd_tax, includeBaseTax=True):
+    """
+    Retrieve all the parents of a taxon in the database
+
+    Parameters:
+    ----------
+    cursor: Psycopg2 cursor
+        cursor for the database connection
+    cd_tax: Int 
+        idenfier of the taxon for which we search the parent taxa
+    Returns:
+    -------
+    all_parents: List(Int)
+        list of identifiers of the parent taxa
+    """
     foundMore = True
     all_parents = []
     currentTax = [cd_tax]
@@ -859,6 +860,20 @@ def parentList(cursor, cd_tax, includeBaseTax=True):
     return all_parents
 
 def synoList(cursor, cd_tax):
+    """
+    Retrieve all the synonyms of a taxon in the database
+
+    Parameters:
+    ----------
+    cursor: Psycopg2 cursor
+        cursor for the database connection
+    cd_tax: Int 
+        idenfier of the accepted taxon for which we search the synonyms
+    Returns:
+    -------
+    all_parents: List(Int)
+        list of identifiers of the synonym taxa
+    """
     SQL = "SELECT ts.cd_tax FROM taxon t JOIN taxon ts ON ts.cd_syno=t.cd_tax WHERE t.cd_tax=%s"
     cursor.execute(SQL,[cd_tax])
     res = cursor.fetchall()
@@ -867,6 +882,27 @@ def synoList(cursor, cd_tax):
     return cds_syno
 
 def synosAndParents(cursor,cd_taxs):
+    """
+    Retrieve all the parents and synonymsi (and synonyms of parents) of a taxon in the database
+
+    Parameters:
+    ----------
+    cursor: Psycopg2 cursor
+        cursor for the database connection
+    cd_taxs: List(Int)
+        
+    Returns:
+    -------
+    Dictionary with the following elements:
+        cd_taxs: List(Int)
+            list of identifiers given as arguments
+        cd_parents: List(Int)   o
+            list of the parent taxa
+        cd_synos: List(Int) 
+            list of identifiers for the synonyms
+        all: List(Int)
+            all the identifiers contained in the previous lists
+    """
     all_parents=[]
     current=cd_taxs
     foundMore = True
@@ -887,10 +923,32 @@ def synosAndParents(cursor,cd_taxs):
     return {'cd_taxs':cd_taxs,'cd_parents': all_parents,'cd_synos':cds_syno,'all':cd_taxs+all_parents+cds_syno}
 
 def checkCdTax(connection, cd_tax, **taxArgs):
+    """
+    Check whether the cd_tax found by the API and the cd_tax given are the same
+    """
     retrievedInfo = manageInputTax(connection=connection, insert = F, **taxArgs)
     return retrievedInfo.get('cd_tax') == cd_tax
 
 def deleteTaxo(connection, cd_tax):
+    """
+    Delete a taxon from the database
+
+    Parameters
+    ----------
+    connection: psycopg2 connection
+        connection to the postgres database
+    cd_tax: Int
+        identifier of the taxon in the database
+
+    Returns:
+        cd_tax:int
+            identifier of the deleted taxon
+        cd_children: List(int)
+            list of identifier of the children taxa from the deleted taxon
+        cd_synos: List(int)
+            list of identifiers of the synonyms for the deleted taxon
+    
+    """
     cur=connection.cursor()
     children = childrenList(cur,cd_tax)
     SQL = "SELECT cd_tax FROM taxon WHERE cd_syno = %s"
@@ -905,6 +963,26 @@ def deleteTaxo(connection, cd_tax):
     return {'cd_tax': cd_tax, 'cd_children':children, 'cd_synos':cds_syno}
 
 def modifyTaxo(connection, **putTaxArgs):
+    """
+    Modify a taxon in the database. If gbifkey, or parentgbifkey, or synogbifkey are given, the information is searched in the gbif Api, otherwise the information is extracted directly from the provided elements
+    Parameters:
+    ----------
+    connection: psycopg2 connection
+        connection to the postgres database
+    putTaxArgs: dict
+        See the definition of the endpoint for the list of arguments possible
+    Returns:
+    --------
+        cd_tax: Int
+            identifier of the modified taxon
+        inserted: List(int)
+            list of inserted taxa: note it is possible that an inserted taxon here is returned but already deleted from the database, indeed taxon might be inserted just to serve as example for comparison with the taxon to be modified.
+    Error handling:
+    --------------- 
+    AlreadyExistsDbError: Exception
+        if gbifkey is provided and corresponds to a taxon already in the database, throw this error and stops
+
+    """
     cd_tax=putTaxArgs['cd_tax']
     inserted=[]
     cur= connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
