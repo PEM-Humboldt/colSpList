@@ -1,3 +1,6 @@
+"""
+Definition of the input arguments in the flask and webargs specifications
+"""
 from webargs import fields
 """Old version: changed automatically from R on 2022-04-08 17:23:46"""
 #TestEndemGetArgs={'canonicalname': fields.Str(required=False), 'gbifkey': fields.Int(required=False), 'scientificname': fields.Str(required=False)}

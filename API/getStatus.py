@@ -61,8 +61,10 @@ def getEndemStatus(cursor, cd_tax):
     Dictionary with the following elements:
         cd_nivel: int
             database code for the endemism level (from 0 when the information is unsuficient, to 4 when the species is clearly endemic in Colombia)
-        descr_endem_es : str 
+        endemism : str 
             Endemic level description in spanish
+        endemism_en: Str
+            Endemic level description in English
         comments: str
             comments associated with the endemism status of the species
         references: str 
@@ -121,8 +123,10 @@ def testEndemStatus(connection,cd_tax):
             Whether there is information about an endemism status for the taxon associated with the cd_tax
         cd_nivel: int
             database code for the endemism level (from 0 when the information is unsuficient, to 4 when the species is clearly endemic in Colombia)
-        descr_endem_es : str 
+        endemism : str 
             Endemic level description in spanish
+        endemism_en: Str
+            Endemic level description in English
         comments: str
             comments associated with the endemism status of the species
         references: str 

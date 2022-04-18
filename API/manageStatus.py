@@ -118,15 +118,11 @@ def deleteRef(connection, cd_ref):
 def manageInputThreat(cd_tax, connection, **inputThreat):
     """
     Test whether the status provided by the user is compatible with the current status of the taxon (if it has one), then if it is compatible, inserts the new references provided. If the taxon has no threat status, it inserts it in the database
-    TODO
-    -----
-    Add the parameter add_comment for case where we want the commentary to be added when the status already exists
-    
     Parameters
     -----------
     cd_tax: int [mandatory]
         cd_tax of the taxon
-    connection: psycopg2 connection [mandatory]
+    connyection: psycopg2 connection [mandatory]
         connection to the postgres database
     inputThreat: dict
         dictionary containing the user-provided information about the threat status and the associated references with the following elements:
@@ -140,6 +136,9 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
             comments concerning the threat status (separated by "|")
         'priority': str
             If it is provided, avoid the errors when the status is different to preexisting status. If "low" and there is a preexisting status, the functions only add new references. If "high" and there is a preexisting status, replace the status in the database.
+        replace_comment: Bool
+            Whether to delete the preexisting comment in a taxon status, before inserting the provided comments, when the status already exists.
+
     Returns
     ------------
     dictionary with the following elements:
@@ -147,13 +146,20 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
             database taxon identifier 
         cds_ref: list(int)
             list of reference identifiers
+        status_replaced: Bool
+            Whether the status has been replaced in the application of the POST method
+        status_created: Bool
+            Whether the status has been created in the POST method
             
     Error handling
     --------------
-    Exception: "The input threat status is not recognized"
-        If the cd_status is not one of the IUCN code, raises this error and stops the execution
-    Exception: "The taxon already exists in the database with another threat status"
-        If the taxon already has a threat status different to the one provided by the user, raises this exception and stops execution
+    Exception: UnauthorizedValueError
+        case 1:
+            If the cd_status is not one of the IUCN code, raises this error and stops the execution
+        case 2:
+            If the priority is not one of 'low' or 'high'
+    Exception: UncompatibleStatusError
+        If the taxon already has a threat status different to the one provided by the user and no priority is given, raises this exception and stops execution
     """
     # test whether status is compatible with the database specification
     resRet=dict()
@@ -215,6 +221,24 @@ def manageInputThreat(cd_tax, connection, **inputThreat):
     return resRet
 
 def deleteThreat(cd_tax,connection,**inputThreat):
+    """
+    Delete a link between a taxon and its threat status, or the status of a taxon.
+
+    Parameters
+    ----------
+    cd_tax: Int
+        Identificator of a taxon in the database
+    connection: psycopg2 connection [mandatory]
+        connection to the postgres database
+    inputThreat: Dictionary
+        See the definition of the endpoint for a complete list of the potential arguments
+    returns
+    -------
+    cd_tax: Int
+        Identifier of a taxon in the API database
+    cd_refs: List(Int)
+        List of Identifiers of bibliographic references
+    """
     cur = connection.cursor()
     if inputThreat.get('delete_status'):
         SQL = "SELECT cd_ref FROM ref_threat WHERE cd_tax=%s"
@@ -235,6 +259,26 @@ def deleteThreat(cd_tax,connection,**inputThreat):
     return {'cd_tax': cd_tax, 'cd_refs': cd_refs}
 
 def modifyThreat(cd_tax,connection,**inputThreat):
+    """
+     Modify the parameters of the threat status of a species, and insert the references associated with the new threat status
+
+     Parameters
+     ----------
+    cd_tax: int [mandatory]
+        cd_tax of the taxon
+    connyection: psycopg2 connection [mandatory]
+        connection to the postgres database
+    inputThreat: dict
+        dictionary containing the user-provided information about the threat status and the associated references (See definition of the endpoint for the list of possible elements: class ManageThreat, method put)
+
+    Returns
+    -----------
+    cd_tax: Int
+            Identifier of a taxon in the API database
+    cd_refs: List(Int)
+            List of Identifiers of bibliographic references
+
+    """
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     SQL = "SELECT count(*) FROM threat_status WHERE cd_status = %s"
     cur.execute(SQL, [inputThreat.get('threatstatus')])
@@ -276,11 +320,8 @@ def modifyThreat(cd_tax,connection,**inputThreat):
 
 def manageInputEndem(cd_tax,connection,**inputEndem):
     """
-    Test whether the status provided by the user is compatible with the current status of the taxon (if it has one), then if it is compatible, inserts the new references provided. If the taxon has no endemic status, it inserts it in the database
+    Add references to an endemic status, or insert references and status if the taxon has no status yet. The optional parameter “priority” control the behavior of the function when the endemic status already exists in the database: if “high”, replace the preexisting status, if low, only add new references. If not provided, or null, and the status from the database is different from the provided status, returns an error and no modification is applied in the database.
     
-    TODO
-    -----
-    Add the parameter add_comment for case where we want the commentary to be added when the status already exists
     Parameters
     -----------
     cd_tax: int [mandatory]
@@ -299,6 +340,11 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
             comments concerning the endemism status (separated by "|")
         'priority': str
             If it is provided, avoid the errors when the status is different to preexisting status. If "low" and there is a preexisting status, the functions only add new references. If "high" and there is a preexisting status, replace the status in the database.
+        replace_comment: Bool
+            Whether to delete the preexisting comment in a taxon status, before inserting the provided comments, when the status already exists.
+        priority: Str
+           “high” if the provided status is prioritary on (must replace) the preexisting status, “low” if the preexisting status should not be modified (in this case only the new references are added in the database)
+
     Returns
     ------------
     dictionary with the following elements:
@@ -306,13 +352,21 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
             database taxon identifier 
         cds_ref: list(int)
             list of reference identifiers
+        status_replaced: Bool
+            Whether the status has been replaced in the application of the POST method
+        status_created: Bool
+            Whether the status has been created in the POST method
             
     Error handling
     --------------
-    Exception: "The input endemic status is not recognized"
-        If the cd_status is not one of the IUCN code, raises this error and stops the execution
-    Exception: "The taxon already exists in the database with another endemic status"
-        If the taxon already has a endemism status different to the one provided by the user, raises this exception and stops execution
+    Exception: UnauthorizedValueError
+        case 1:
+            If the cd_status is not one of the authorized values to recognized endemism status (Spanish description English description, or value from 0 to 4), raises this error and stops the execution
+        case 2:
+            If the priority is not one of 'low' or 'high'
+    Exception: UncompatibleStatusError
+        If the taxon already has a threat status different to the one provided by the user and no priority is given, raises this exception and stops execution
+
     """
     # test whether status is compatible with the database specification
     resRet=dict()
@@ -377,26 +431,71 @@ def manageInputEndem(cd_tax,connection,**inputEndem):
     return resRet
 
 def deleteEndem(cd_tax,connection,**inputEndem):
+    """
+    Delete a link between a taxon and its endemic status, or the status of a taxon.
+
+    Parameters
+    ----------
+    cd_tax: Int
+        Identificator of a taxon in the database
+    connection: psycopg2 connection [mandatory]
+        connection to the postgres database
+    inputThreat: Dictionary
+        See the definition of the endpoint for a complete list of the potential arguments
+    returns
+    -------
+    cd_tax: Int
+        Identifier of a taxon in the API database
+    cd_refs: List(Int)
+        List of Identifiers of bibliographic references
+    """
     cur = connection.cursor()
-    if inputEndem.get('delete_status'):
-        SQL = "SELECT cd_ref FROM ref_endem WHERE cd_tax=%s"
+    if inputThreat.get('delete_status'):
+        SQL = "SELECT cd_ref FROM ref_threat WHERE cd_tax=%s"
         cur.execute(SQL,[cd_tax])
         res = cur.fetchall()
         cd_refs = [r[0] for r in res]
-        SQL = "DELETE FROM endemic WHERE cd_tax=%s"
+        SQL = "DELETE FROM threat WHERE cd_tax=%s"
         cur.execute(SQL, [cd_tax])
-    elif inputEndem.get('cd_ref'):
-        SQL = "DELETE FROM ref_endem WHERE cd_tax=%s AND cd_ref=%s"
-        cur.execute(SQL,[cd_tax,inputEndem.get('cd_ref')])
-        cd_refs = [inputEndem.get('cd_ref')]
+    elif inputThreat.get('cd_ref'):
+        SQL = "DELETE FROM ref_threat WHERE cd_tax=%s AND cd_ref=%s"
+        cur.execute(SQL,[cd_tax,inputThreat.get('cd_ref')])
+        cd_refs = [inputThreat.get('cd_ref')]
     else:
-        raise MissingArgError(missingArg="'cd_ref' or 'delete_status'",message='Do you want to suppress the status (\'delete_status\'=True) or just a reference associated with the status (provide \'cd_ref\')?')
-        #raise Exception('noCdRefNorDeletestatus')
+        raise MissingArgError(missingArg="'cd_ref' or 'delete_status'",message='Do you want to suppress the status (\'delete_status\'=True) or just a reference associated with the status (provide \'cd_ref\')')
+        #Exception('noCdRefNorDeletestatus')
     connection.commit()
     cur.close()
     return {'cd_tax': cd_tax, 'cd_refs': cd_refs}
 
 def modifyEndem(cd_tax,connection,**inputEndem):
+    """
+     Modify the parameters of the endemism status of a species, and insert the references associated with the new endemism status
+
+     Parameters
+     ----------
+    cd_tax: int [mandatory]
+        cd_tax of the taxon
+    connyection: psycopg2 connection [mandatory]
+        connection to the postgres database
+    inputendem: dict
+        dictionary containing the user-provided information about the threat status and the associated references (See definition of the endpoint for the list of possible elements: class ManageEndem, method put)
+
+    Returns
+    -----------
+    cd_tax: Int
+            Identifier of a taxon in the API database
+    cd_refs: List(Int)
+            List of Identifiers of bibliographic references
+    
+    Error handling
+    --------------
+    Exception: UnauthorizedValueError
+        If the provided value of endemstatus is not compatible with possible values (description in spanish and english or code from 0 to 4)
+    Exception: ModifyMissingStatusDbError
+        If the status of the species does not exist
+
+    """
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     SQL="SELECT * FROM (SELECT descr_endem_es AS cd_status, 1 AS type_order, cd_nivel FROM nivel_endem UNION SELECT descr_endem_en AS cd_status,2,cd_nivel FROM nivel_endem UNION SELECT cd_nivel::text AS cd_status,3,cd_nivel FROM nivel_endem) AS foo ORDER BY type_order, cd_nivel"
     cur.execute(SQL)
@@ -470,13 +569,18 @@ def manageInputExot(cd_tax,connection,**inputExot):
             database taxon identifier 
         cds_ref: list(int)
             list of reference identifiers
+        status_replaced: Bool
+            Whether the status has been replaced in the application of the POST method
+        status_created: Bool
+            Whether the status has been created in the POST method
+
             
     Error handling
     --------------
-    Exception: "The input alien/invasive status is not recognized"
-        If the cd_status is not one of the IUCN code, raises this error and stops the execution
-    Exception: "The taxon already exists in the database with another alien/invasive status"
-        If the taxon already has a alien/invasive status different to the one provided by the user, raises this exception and stops execution
+    Exception: UnauthorizedValueError
+        if priority is not one of 'high' or 'low'
+    Exception: UncompatibleStatusError
+        If the taxon already has a alien/invasive status different to the one provided by the user,and no priority is given, raises this exception and stops execution
     """
     resRet=dict()
     # test whether status is compatible with the database specification
@@ -529,6 +633,24 @@ def manageInputExot(cd_tax,connection,**inputExot):
     return resRet
 
 def deleteExot(cd_tax,connection,**inputExot):
+    """
+    Delete a link between a taxon and its alien-invasive status, or the status of a taxon.
+
+    Parameters
+    ----------
+    cd_tax: Int
+        Identificator of a taxon in the database
+    connection: psycopg2 connection [mandatory]
+        connection to the postgres database
+    inputExot: Dictionary
+        See the definition of the endpoint for a complete list of the potential arguments
+    returns
+    -------
+    cd_tax: Int
+        Identifier of a taxon in the API database
+    cd_refs: List(Int)
+        List of Identifiers of bibliographic references
+    """
     cur = connection.cursor()
     if inputExot.get('delete_status'):
         SQL = "SELECT cd_ref FROM ref_exot WHERE cd_tax=%s"
@@ -549,6 +671,31 @@ def deleteExot(cd_tax,connection,**inputExot):
     return {'cd_tax': cd_tax, 'cd_refs': cd_refs}
 
 def modifyExot(cd_tax,connection,**inputExot):
+    """
+     Modify the parameters of the endemism status of a species, and insert the references associated with the new endemism status
+
+     Parameters
+     ----------
+    cd_tax: int [mandatory]
+        cd_tax of the taxon
+    connection: psycopg2 connection [mandatory]
+        connection to the postgres database
+    inputendem: dict
+        dictionary containing the user-provided information about the threat status and the associated references (See definition of the endpoint for the list of possible elements: class ManageExot, method put)
+
+    Returns
+    -----------
+    cd_tax: Int
+            Identifier of a taxon in the API database
+    cd_refs: List(Int)
+            List of Identifiers of bibliographic references
+    
+    Error handling
+    --------------
+    Exception: ModifyMissingStatusDbError
+        If the status of the species does not exist
+
+    """
     cur = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     # find the  status if it exists in the database
     SQL = "SELECT count(*) FROM exot WHERE cd_tax=%s"
